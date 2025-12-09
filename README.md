@@ -1,74 +1,19 @@
-# Skills MCP Server
+# Skills MCP Server for Gemini
 
-An MCP (Model Context Protocol) server for loading skills on demand. This helps AI agents manage their context window by loading and unloading skills as needed.
+An MCP (Model Context Protocol) server for loading skills on demand, designed to be used as a Gemini extension. This helps AI agents manage their context window by loading and unloading skills as needed.
 
 ## Overview
-This project provides a flexible and dynamic way to provide "skills" to an AI agent. A skill is a piece of text, usually a document, that provides the AI with knowledge or capabilities. The server allows the agent to list available skills and load only the ones relevant to the current task, thus saving precious context window space.
+This project provides a flexible and dynamic way to provide "skills" to an AI agent. A skill is a piece of text, usually a document, that provides the AI with specific knowledge or capabilities. The server, running as a Gemini extension, allows the agent to list available skills and load only the ones relevant to the current task, thus saving precious context window space.
 
-## Setup
+## As a Gemini Extension
 
-This project includes a setup script (`setup_mcp.py`) to manage the MCP server configuration, allowing for both local (project-specific) and global installations.
+This project is intended to be used as a Gemini extension. The `gemini-extension.json` file defines how the extension is loaded and configured. The MCP server is started automatically by the Gemini CLI.
 
-**Usage:**
-
-```bash
-# Install globally (checks existing config, appends or overwrites)
-python setup_mcp.py install --global
-
-# Install locally for this project only
-python setup_mcp.py install --local
-
-# Check current status of both local and global configs
-python setup_mcp.py status
-
-# Remove from global config (keeps other servers)
-python setup_mcp.py uninstall --global
-
-# Remove local config completely
-python setup_mcp.py uninstall --local
-```
-
-Run `python setup_mcp.py --help` for more details on commands and options.
-
-### Environment Setup with `uv`
-
-This project uses `uv` for efficient dependency management and virtual environment creation.
-
-1.  **Create Virtual Environment:**
-    ```bash
-    uv venv
-    ```
-
-2.  **Activate Environment:**
-    -   macOS/Linux:
-        ```bash
-        source .venv/bin/activate
-        ```
-    -   Windows (PowerShell):
-        ```bash
-        .venv\Scripts\Activate.ps1
-        ```
-
-3.  **Synchronize Dependencies and Create Lock File:**
-    ```bash
-    uv sync
-    ```
-    This command reads `pyproject.toml`, creates `uv.lock` (if it doesn't exist), and installs dependencies into `.venv`. Commit `uv.lock` to Git.
-
-4.  **Regenerate Lock File:**
-    If `pyproject.toml` is manually changed or branches are switched:
-    ```bash
-    uv lock
-    ```
-
-5.  **Deactivate Environment:**
-    ```bash
-    deactivate
-    ```
+The server is defined in `mcp_app/skills_server.py`, and the skills are located in the `skills` directory.
 
 ## Skill Structure
 
-Skills are organized in a directory structure. The server scans a `skills` directory (by default `~/.capl-skills/skills`, but this is ignored by git in the project).
+Skills are organized in a directory structure. The server scans the `skills` directory within the project.
 
 Each skill must be in its own directory. The name of the directory is the name of the skill. Inside the skill directory, there must be a file named `SKILL.md`.
 
@@ -95,5 +40,40 @@ keywords: [awesome, skill]
 The rest of the file is the skill content.
 ```
 If the `name` is provided in the frontmatter, it will override the folder name.
+
+## Usage
+
+The primary way to interact with this extension is through the tools it provides to the Gemini agent.
+
+### USAGE PATTERN FOR AI AGENTS:
+
+1.  **Discovery Phase (ALWAYS START HERE):**
+    ```
+    result = list_skills()
+    # Analyze result.skills to find relevant ones based on:
+    # - description field
+    # - keywords field
+    # - skill_name field
+    ```
+
+2.  **Loading Phase (LOAD ONLY WHAT YOU NEED):**
+    ```
+    # Load relevant skills
+    skill1 = load_skill(skill_name="some-skill")
+    if skill1.status == "loaded":
+        # Use skill1.content for context
+        pass
+    elif skill1.status == "already_loaded":
+        # Skill is already in context, no need to load again
+        pass
+    ```
+
+### ANTI-PATTERNS TO AVOID:
+
+*   **Loading all skills at once:** This wastes context tokens and may hit context limits.
+*   **Loading the same skill multiple times:** Check the `status` field in the `load_skill` response. Use `force_reload` only when needed.
+*   **Not calling `list_skills` first:** You won't know what skills are available and may request skills that don't exist.
+
+**BEST PRACTICE:** Always call `list_skills` → analyze metadata → load specific skills.
 
 *This project is maintained by MohamedHamed19m.*
