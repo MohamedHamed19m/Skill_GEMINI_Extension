@@ -2,3 +2,6 @@
 .cache/
 *.log
 __pycache__/
+
+.gemini/
+skills/

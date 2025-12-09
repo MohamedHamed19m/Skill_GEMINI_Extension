@@ -94,8 +94,8 @@ class SkillsManager:
         self.skills_dir = Path(skills_dir).expanduser()
         self.skills_dir.mkdir(parents=True, exist_ok=True)
         
-        # State: Available skills (metadata only)
-        self._available_skills: Dict[str, SkillMetadata] = {}
+        # State: Available skills (metadata and path)
+        self._available_skills: Dict[str, Dict[str, Any]] = {}
         
         # State: Loaded skills (full content + metadata)
         self._loaded_skills: Dict[str, Dict[str, Any]] = {}
@@ -104,15 +104,18 @@ class SkillsManager:
         self._scan_directory()
     
     def _scan_directory(self) -> None:
-        """Scan skills directory and parse metadata from all .md files"""
+        """Scan skills directory and parse metadata from all SKILL.md files"""
         self._available_skills.clear()
         
-        for md_file in self.skills_dir.rglob("*.md"):
+        for md_file in self.skills_dir.rglob("SKILL.md"):
             try:
                 metadata = self._parse_skill_metadata(md_file)
-                self._available_skills[metadata.name] = metadata
+                self._available_skills[metadata.name] = {
+                    "metadata": metadata,
+                    "path": md_file
+                }
             except Exception as e:
-                print(f"Warning: Failed to parse {md_file.name}: {e}")
+                print(f"Warning: Failed to parse {md_file.name} in folder {md_file.parent.name}: {e}")
     
     def _parse_skill_metadata(self, file_path: Path) -> SkillMetadata:
         """
@@ -123,19 +126,19 @@ class SkillsManager:
         
         # Extract YAML frontmatter
         if not content.startswith('---'):
-            raise ValueError(f"File {file_path.name} missing YAML frontmatter")
+            raise ValueError(f"File {file_path.name} in {file_path.parent.name} missing YAML frontmatter")
         
         parts = content.split('---', 2)
         if len(parts) < 3:
-            raise ValueError(f"Invalid frontmatter format in {file_path.name}")
+            raise ValueError(f"Invalid frontmatter format in {file_path.name} in {file_path.parent.name}")
         
         frontmatter = yaml.safe_load(parts[1])
         full_content = parts[2].strip()
         
         # Create metadata object (Pydantic validation happens here)
         return SkillMetadata(
-            name=frontmatter.get('name', file_path.stem),
-            title=frontmatter.get('title', file_path.stem.replace('-', ' ').title()),
+            name=frontmatter.get('name', file_path.parent.name),
+            title=frontmatter.get('title', file_path.parent.name.replace('-', ' ').title()),
             description=frontmatter.get('description', ''),
             keywords=frontmatter.get('keywords', []),
             version=frontmatter.get('version', '1.0.0'),
@@ -150,7 +153,7 @@ class SkillsManager:
     
     def get_all_skills_metadata(self) -> List[SkillMetadata]:
         """Get metadata for all available skills (lightweight)"""
-        return list(self._available_skills.values())
+        return [item['metadata'] for item in self._available_skills.values()]
     
     def get_loaded_skill_names(self) -> List[str]:
         """Get names of currently loaded skills"""
@@ -200,18 +203,13 @@ class SkillsManager:
         
         # Load the skill content
         try:
-            metadata = self._available_skills[skill_name]
-            file_path = Path(self.skills_dir) / f"{skill_name}.md"
+            skill_info = self._available_skills[skill_name]
+            metadata = skill_info['metadata']
+            file_path = skill_info['path']
             
             if not file_path.exists():
-                # Fallback: try to find by name in available skills
-                for skill_meta in self._available_skills.values():
-                    if skill_meta.name == skill_name:
-                        # Parse from original file path if stored
-                        break
-                else:
-                    raise FileNotFoundError(f"Skill file not found")
-            
+                raise FileNotFoundError(f"Skill file not found at path: {file_path}")
+
             content = file_path.read_text(encoding='utf-8')
             
             # Remove frontmatter, keep only content
@@ -261,7 +259,7 @@ class SkillsManager:
             "previous_count": old_count,
             "current_count": new_count,
             "new_skills": new_count - old_count,
-            "skill_names": [s.name for s in self._available_skills.values()]
+            "skill_names": [s['metadata'].name for s in self._available_skills.values()]
         }
 
 

@@ -136,6 +136,40 @@ For more details, see the documentation below:
 
 - **[MCP Usage Guide (docs/MCP_Usage.md)](docs/MCP_Usage.md)**: Explains when and why to use this MCP server.
 - **[MCP Server Details (docs/README_MCP.md)](docs/README_MCP.md)**: Provides detailed information on the server's tools and how to connect to it.
+
+## Skills MCP Server
+
+This project also includes a general-purpose MCP server for managing and loading "skills" for an AI agent. A skill is a piece of text, usually a document, that provides the AI with knowledge or capabilities.
+
+### Skill Structure
+
+Skills are organized in a directory structure. The server scans a `skills` directory (by default `~/.capl-skills/skills`, but this is ignored by git in the project).
+
+Each skill must be in its own directory. The name of the directory is the name of the skill. Inside the skill directory, there must be a file named `SKILL.md`.
+
+Example structure:
+```
+skills/
+└── my-awesome-skill/
+    ├── SKILL.md
+    └── some-other-file.txt
+```
+
+In this example, the skill name is `my-awesome-skill`. The content of `SKILL.md` will be loaded as the skill's content. Any other files in the skill's directory are for reference and will not be loaded by the server.
+
+The `SKILL.md` file can have a YAML frontmatter to provide metadata, for example:
+
+```yaml
+---
+name: my-awesome-skill-override
+title: My Awesome Skill
+description: This is a skill that does awesome things.
+keywords: [awesome, skill]
+---
+
+The rest of the file is the skill content.
+```
+If the `name` is provided in the frontmatter, it will override the folder name.
  
  
 📘 Example CAPL Documentation
