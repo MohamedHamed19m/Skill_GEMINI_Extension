@@ -90,36 +90,59 @@ class SkillsManager:
     Follows Single Responsibility Principle - only manages skills, doesn't make decisions.
     """
     
-    def __init__(self, skills_dir: Optional[str] = None):
-        if skills_dir:
-            self.skills_dir = Path(skills_dir)
-        else:
-            self.skills_dir = Path(__file__).parent.parent / "skills"
-        self.skills_dir.mkdir(parents=True, exist_ok=True)
+    def __init__(self, default_skills_dirs: Optional[List[str]] = None):
+        # Default directory
+        default_dir = Path(__file__).parent.parent / "skills"
         
-        # State: Available skills (metadata and path)
+        if default_skills_dirs:
+            self.default_skills_dirs = [Path(d) for d in default_skills_dirs]
+        else:
+            self.default_skills_dirs = [default_dir]
+        
+        # Active directories (starts with defaults)
+        self.active_skills_dirs: List[Path] = self.default_skills_dirs.copy()
+        
+        # Ensure default directories exist
+        for dir_path in self.default_skills_dirs:
+            dir_path.mkdir(parents=True, exist_ok=True)
+        
+        # State: Available skills (metadata, path, AND source directory)
         self._available_skills: Dict[str, Dict[str, Any]] = {}
         
         # State: Loaded skills (full content + metadata)
         self._loaded_skills: Dict[str, Dict[str, Any]] = {}
         
-        # Initialize by scanning directory
-        self._scan_directory()
+        # Initialize by scanning directories
+        self._scan_directories()
     
-    def _scan_directory(self) -> None:
-        """Scan skills directory and parse metadata from all SKILL.md files"""
+
+    def _scan_directories(self) -> None:
+        """Scan all active skills directories and parse metadata from all SKILL.md files"""
         self._available_skills.clear()
         
-        for md_file in self.skills_dir.rglob("SKILL.md"):
-            try:
-                metadata = self._parse_skill_metadata(md_file)
-                self._available_skills[metadata.name] = {
-                    "metadata": metadata,
-                    "path": md_file
-                }
-            except Exception as e:
-                print(f"Warning: Failed to parse {md_file.name} in folder {md_file.parent.name}: {e}")
-    
+        for skills_dir in self.active_skills_dirs:
+            if not skills_dir.exists():
+                print(f"Warning: Skills directory does not exist: {skills_dir}")
+                continue
+                
+            for md_file in skills_dir.rglob("SKILL.md"):
+                try:
+                    metadata = self._parse_skill_metadata(md_file)
+                    skill_name = metadata.name
+                    
+                    # Handle duplicates: first directory in list wins
+                    if skill_name in self._available_skills:
+                        print(f"Warning: Duplicate skill '{skill_name}' found in {skills_dir}. "
+                              f"Using version from {self._available_skills[skill_name]['source_dir']}")
+                        continue
+                    
+                    self._available_skills[skill_name] = {
+                        "metadata": metadata,
+                        "path": md_file,
+                        "source_dir": skills_dir  # Track which directory it came from
+                    }
+                except Exception as e:
+                    print(f"Warning: Failed to parse {md_file.name} in folder {md_file.parent.name}: {e}")
     def _parse_skill_metadata(self, file_path: Path) -> SkillMetadata:
         """
         Parse YAML frontmatter from skill file and extract metadata only.
@@ -255,7 +278,7 @@ class SkillsManager:
     def reload_directory(self) -> Dict[str, Any]:
         """Rescan skills directory for new or updated skills"""
         old_count = len(self._available_skills)
-        self._scan_directory()
+        self._scan_directories()
         new_count = len(self._available_skills)
         
         return {
@@ -264,6 +287,59 @@ class SkillsManager:
             "new_skills": new_count - old_count,
             "skill_names": [s['metadata'].name for s in self._available_skills.values()]
         }
+
+    def add_skills_directory(self, path: str) -> Dict[str, Any]:
+        """
+        Add a new directory to scan for skills.
+        Returns result dict with success status.
+        """
+        try:
+            dir_path = Path(path).expanduser().resolve()
+            
+            # Validate directory exists
+            if not dir_path.exists():
+                return {
+                    "success": False,
+                    "error": f"Directory does not exist: {path}"
+                }
+            
+            if not dir_path.is_dir():
+                return {
+                    "success": False,
+                    "error": f"Path is not a directory: {path}"
+                }
+            
+            # Check if already added (normalize paths for comparison)
+            if dir_path in self.active_skills_dirs:
+                return {
+                    "success": True,
+                    "message": "Directory already in active paths",
+                    "active_directories": [str(d) for d in self.active_skills_dirs]
+                }
+            
+            # Add to active directories
+            self.active_skills_dirs.append(dir_path)
+            
+            # Rescan to include new directory
+            old_count = len(self._available_skills)
+            self._scan_directories()
+            new_count = len(self._available_skills)
+            
+            return {
+                "success": True,
+                "message": f"Directory added successfully: {dir_path}",
+                "active_directories": [str(d) for d in self.active_skills_dirs],
+                "skills_before": old_count,
+                "skills_after": new_count,
+                "new_skills_found": new_count - old_count
+            }
+        
+        except Exception as e:
+            return {
+                "success": False,
+                "error": f"Failed to add directory: {str(e)}"
+            }
+
 
 
 # ============================================================================
@@ -413,6 +489,17 @@ def suggest_relevant_skills(query: str, max_suggestions: int = 3) -> Dict[str, A
         "query": query,
         "advice": "Load suggested skills via load_skill for best results."
     }
+
+@mcp.tool(
+    name="add_skills_directory",
+    description="Add a new directory to scan for skills. Returns result dict with success status."
+)
+def add_skills_directory(path: str) -> Dict[str, Any]:
+    """
+    Add a new directory to scan for skills.
+    Returns result dict with success status.
+    """
+    return skills_manager.add_skills_directory(path)
 # ============================================================================
 # Usage Documentation
 # ============================================================================
