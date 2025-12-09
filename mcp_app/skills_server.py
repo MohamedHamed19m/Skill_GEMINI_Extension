@@ -90,8 +90,11 @@ class SkillsManager:
     Follows Single Responsibility Principle - only manages skills, doesn't make decisions.
     """
     
-    def __init__(self, skills_dir: str = "~/.capl-skills/skills"):
-        self.skills_dir = Path(skills_dir).expanduser()
+    def __init__(self, skills_dir: Optional[str] = None):
+        if skills_dir:
+            self.skills_dir = Path(skills_dir)
+        else:
+            self.skills_dir = Path(__file__).parent.parent / "skills"
         self.skills_dir.mkdir(parents=True, exist_ok=True)
         
         # State: Available skills (metadata and path)
@@ -370,6 +373,46 @@ def load_skill(
     return skills_manager.load_skill_content(skill_name, force_reload)
 
 
+
+from sklearn.feature_extraction.text import TfidfVectorizer  # For scoring; lightweight
+from sklearn.metrics.pairwise import cosine_similarity
+import numpy as np
+
+@mcp.tool(
+    name="suggest_relevant_skills",
+    description="Given a user query, suggest top relevant skills with scores. Use this BEFORE loading to minimize context bloat. Returns top 3-5 with match reasons."
+)
+def suggest_relevant_skills(query: str, max_suggestions: int = 3) -> Dict[str, Any]:
+    all_metadata = skills_manager.get_all_skills_metadata()
+    if not all_metadata:
+        return {"suggestions": [], "message": "No skills available"}
+    
+    # Quick TF-IDF scoring
+    documents = [f"{m.description} {' '.join(m.keywords)} {m.name}" for m in all_metadata]
+    vectorizer = TfidfVectorizer(stop_words='english', max_features=100)
+    tfidf_matrix = vectorizer.fit_transform(documents + [query])  # Include query
+    query_vec = tfidf_matrix[-1:]
+    doc_vecs = tfidf_matrix[:-1]
+    
+    scores = cosine_similarity(query_vec, doc_vecs)[0]
+    scored_skills = sorted(zip(all_metadata, scores), key=lambda x: x[1], reverse=True)
+    
+    suggestions = []
+    for skill, score in scored_skills[:max_suggestions]:
+        if score > 0.1:  # Threshold for relevance
+            suggestions.append({
+                "name": skill.name,
+                "title": skill.title,
+                "relevance_score": float(score),
+                "reason": f"Matches on: {', '.join(set(skill.keywords) & set(query.lower().split()))}"
+            })
+    
+    return {
+        "suggestions": suggestions,
+        "total_scored": len(scored_skills),
+        "query": query,
+        "advice": "Load suggested skills via load_skill for best results."
+    }
 # ============================================================================
 # Usage Documentation
 # ============================================================================
@@ -397,16 +440,7 @@ USAGE PATTERN FOR AI AGENTS:
        # Skill is already in context, no need to load again
        pass
    ```
-
-3. Context Management (WHEN SWITCHING DOMAINS):
-   ```
-   # Unload skills no longer needed
-   unload_skill(skill_name="capl-arethil")
-   
-   # Load new skills
-   load_skill(skill_name="capl-database")
-   ```
-
+ 
 EXAMPLE CONVERSATION FLOW:
 
 User: "How do I send an ARETHIL frame in CAPL?"
@@ -423,7 +457,6 @@ User: "Now I need to work with the database"
 AI reasoning:
 1. Current context has "capl-arethil" loaded
 2. User is switching domains
-3. Call unload_skill(skill_name="capl-arethil") to free tokens
 4. Call load_skill(skill_name="capl-database")
 5. Answer using database skill content
 

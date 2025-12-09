@@ -1,0 +1,9 @@
+name = "load-skill"
+description = "Load a CAPL skill by name (e.g., arethil, ethernet, database). Auto-suggests via tools."
+prompt = """
+User wants to load skill: {{query}} (e.g., 'arethil').
+1. Call list_skills to discover.
+2. If relevant, call load_skill({{query}}).
+3. Respond: "Loaded {{query}}—ask your CAPL question!"
+"""
+prefix = "capl"
