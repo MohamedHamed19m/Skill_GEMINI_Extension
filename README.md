@@ -11,6 +11,49 @@ This project is intended to be used as a Gemini extension. The `gemini-extension
 
 The MCP server is defined in `mcp_app/skills_server.py`, and custom commands are located in the `commands` directory. The skills themselves are located in the `skills` directory.
 
+## Installation
+
+This project uses `uv` for package and environment management.
+
+1.  **Install `uv`:**
+
+    If you don't have `uv` installed, follow the official installation instructions for your OS. For example, on macOS/Linux:
+    ```bash
+    curl -LsSf https://astral.sh/uv/install.sh | sh
+    ```
+    On Windows:
+    ```powershell
+    irm https://astral.sh/uv/install.ps1 | iex
+    ```
+
+2.  **Create and Sync the Virtual Environment:**
+
+    Run the following command to create a virtual environment named `.venv` and install the dependencies from `pyproject.toml`:
+    ```bash
+    uv venv
+    uv sync
+    ```
+
+3.  **Activate the Virtual Environment:**
+
+    Before running the server, activate the environment.
+    
+    On macOS/Linux:
+    ```bash
+    source .venv/bin/activate
+    ```
+    On Windows:
+    ```powershell
+    .venv\Scripts\activate
+    ```
+
+4.  **Run the Server:**
+
+    Once the environment is activated, you can start the server:
+    ```bash
+    python mcp_app/skills_server.py
+    ```
+
 ## Skill Structure
 
 Skills are organized in a directory structure. The server scans the `skills` directory within the project.
@@ -41,39 +84,36 @@ The rest of the file is the skill content.
 ```
 If the `name` is provided in the frontmatter, it will override the folder name.
 
-## Usage
+## AI Agent Workflow
 
-The primary way to interact with this extension is through the tools it provides to the Gemini agent.
+### Recommended Pattern (with search)
+1. **Search for relevant skills:**
+```
+   results = search_skills(query="How do I send ARETHIL frames?")
+   # Returns: Top 3-5 relevant skills with scores
+```
 
-### USAGE PATTERN FOR AI AGENTS:
+2. **Load the best matches:**
+```
+   load_skill(skill_name=results[0]["name"])
+```
 
-1.  **Discovery Phase (ALWAYS START HERE):**
-    ```
-    result = list_skills()
-    # Analyze result.skills to find relevant ones based on:
-    # - description field
-    # - keywords field
-    # - skill_name field
-    ```
+3. **Use the content to answer the question**
 
-2.  **Loading Phase (LOAD ONLY WHAT YOU NEED):**
-    ```
-    # Load relevant skills
-    skill1 = load_skill(skill_name="some-skill")
-    if skill1.status == "loaded":
-        # Use skill1.content for context
-        pass
-    elif skill1.status == "already_loaded":
-        # Skill is already in context, no need to load again
-        pass
-    ```
+### Fallback Pattern (without search)
+1. **List all skills** (only if search fails):
+```
+   all_skills = list_skills()
+```
 
-### ANTI-PATTERNS TO AVOID:
+2. **Manually filter** based on keywords/description
 
-*   **Loading all skills at once:** This wastes context tokens and may hit context limits.
-*   **Loading the same skill multiple times:** Check the `status` field in the `load_skill` response. Use `force_reload` only when needed.
-*   **Not calling `list_skills` first:** You won't know what skills are available and may request skills that don't exist.
+3. **Load specific skills**
 
-**BEST PRACTICE:** Always call `list_skills` → analyze metadata → load specific skills.
+## Search Quality
+
+- **First 5-10 minutes:** Uses fast keyword matching
+- **After model loads:** Automatically upgrades to semantic search
+- **Transparent:** AI doesn't need to know which backend is active
 
 *This project is maintained by MohamedHamed19m.*

@@ -4,7 +4,7 @@ Following the "Definition vs. Executor" pattern with protocol-driven design
 """
 
 from fastmcp import FastMCP
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from typing import List, Optional, Dict, Any
 from pathlib import Path
 from dataclasses import dataclass
@@ -24,20 +24,17 @@ class SkillMetadata(BaseModel):
     keywords: List[str] = Field(description="Keywords for relevance matching")
     version: str = Field(default="1.0.0")
     auto_activate: bool = Field(default=True)
-    estimated_tokens: int = Field(description="Approximate token count")
     
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(json_schema_extra = {
             "example": {
                 "name": "capl-arethil",
                 "title": "CAPL ARETHIL Library Expert",
                 "description": "Expert knowledge of Vector CAPL ARETHIL library",
                 "keywords": ["arethil", "ethernet", "capl"],
                 "version": "1.0.0",
-                "auto_activate": True,
-                "estimated_tokens": 4500
+                "auto_activate": True
             }
-        }
+        })
 
 
 class SkillLoadResult(BaseModel):
@@ -46,20 +43,17 @@ class SkillLoadResult(BaseModel):
     skill_name: str
     content: Optional[str] = Field(None, description="Full skill content if loaded")
     message: str = Field(description="Human-readable status message")
-    tokens_loaded: Optional[int] = Field(None, description="Token count if newly loaded")
     loaded_at: Optional[str] = Field(None, description="ISO timestamp when loaded")
     
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(json_schema_extra = {
             "example": {
                 "status": "loaded",
                 "skill_name": "capl-arethil",
                 "content": "# CAPL ARETHIL Expert\n...",
                 "message": "Skill loaded successfully",
-                "tokens_loaded": 4500,
                 "loaded_at": "2024-12-08T10:30:00"
             }
-        }
+        })
 
 
 class SkillsListResult(BaseModel):
@@ -67,18 +61,260 @@ class SkillsListResult(BaseModel):
     skills: List[SkillMetadata] = Field(description="List of available skills")
     total_available: int = Field(description="Total number of skills found")
     currently_loaded: List[str] = Field(description="Names of currently loaded skills")
-    total_tokens_loaded: int = Field(description="Total tokens in loaded skills")
     
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(json_schema_extra = {
             "example": {
                 "skills": [],
                 "total_available": 5,
-                "currently_loaded": ["capl-arethil"],
-                "total_tokens_loaded": 4500
+                "currently_loaded": ["capl-arethil"]
             }
+        })
+
+
+# ============================================================================
+# Search Strategy (Strategy Pattern)
+# ============================================================================
+from abc import ABC, abstractmethod
+import threading
+
+class SearchStrategy(ABC):
+    @abstractmethod
+    def search(self, query: str, skills: List[SkillMetadata], limit: int) -> List[Dict]:
+        pass
+    
+    @abstractmethod
+    def is_ready(self) -> bool:
+        pass
+
+class KeywordSearchStrategy(SearchStrategy):
+    """Fast, simple, always ready"""
+    def search(self, query: str, skills: List[SkillMetadata], limit: int) -> List[Dict]:
+        query_lower = query.lower()
+        query_words = set(query_lower.split())
+        
+        scored_skills = []
+        
+        for skill in skills:
+            score = 0
+            matches = []
+            
+            # Exact keyword matches (highest score)
+            keyword_matches = [kw for kw in skill.keywords if kw.lower() in query_lower]
+            score += len(keyword_matches) * 10
+            if keyword_matches:
+                matches.append(f"keywords: {', '.join(keyword_matches)}")
+            
+            # Name match
+            if skill.name.lower() in query_lower:
+                score += 15
+                matches.append(f"name: {skill.name}")
+            
+            # Description word overlap
+            desc_words = set(skill.description.lower().split())
+            common_words = query_words & desc_words
+            score += len(common_words) * 2
+            if common_words:
+                matches.append(f"description: {', '.join(list(common_words)[:3])}")
+            
+            if score > 0:
+                scored_skills.append({
+                    "skill": skill,
+                    "score": score,
+                    "matches": matches
+                })
+        
+        # Sort by score
+        scored_skills.sort(key=lambda x: x["score"], reverse=True)
+        
+        # Return top N
+        results = []
+        for item in scored_skills[:limit]:
+            results.append({
+                "name": item["skill"].name,
+                "title": item["skill"].title,
+                "score": item["score"],
+                "match_reason": "; ".join(item["matches"]),
+                "search_method": "keyword"
+            })
+        
+        return results
+    
+    def is_ready(self) -> bool:
+        return True
+
+import pickle
+
+class EmbeddingSearchStrategy(SearchStrategy):
+    """Better quality, takes time to load"""
+    def __init__(self):
+        self.model = None  # Not loaded yet
+        self.embeddings_cache = {}  # skill_name -> embedding
+        self.cache_path = Path(__file__).parent.parent / ".embeddings_cache.pkl"
+        
+    def load_cache(self) -> bool:
+        """Load cached embeddings from disk"""
+        if not self.cache_path.exists():
+            return False
+        
+        try:
+            with open(self.cache_path, 'rb') as f:
+                self.embeddings_cache = pickle.load(f)
+            print(f"[EmbeddingSearch] Loaded {len(self.embeddings_cache)} cached embeddings")
+            return True
+        except Exception as e:
+            print(f"[EmbeddingSearch] Failed to load cache: {e}")
+            return False
+    
+    def save_cache(self):
+        """Save embeddings to disk"""
+        try:
+            with open(self.cache_path, 'wb') as f:
+                pickle.dump(self.embeddings_cache, f)
+            print(f"[EmbeddingSearch] Saved {len(self.embeddings_cache)} embeddings to cache")
+        except Exception as e:
+            print(f"[EmbeddingSearch] Failed to save cache: {e}")
+
+    def search(self, query: str, skills: List[SkillMetadata], limit: int) -> List[Dict]:
+        if not self.is_ready():
+            return []  # Not ready yet
+        
+        # Encode query
+        query_embedding = self.model.encode(query, convert_to_tensor=False)
+        
+        # Calculate similarities
+        from sklearn.metrics.pairwise import cosine_similarity
+        import numpy as np
+        
+        results = []
+        for skill in skills:
+            if skill.name not in self.embeddings_cache:
+                continue  # Skip if embedding not precomputed
+            
+            skill_embedding = self.embeddings_cache[skill.name]
+            similarity = cosine_similarity(
+                query_embedding.reshape(1, -1),
+                skill_embedding.reshape(1, -1)
+            )[0][0]
+            
+            if similarity > 0.2:  # Threshold
+                results.append({
+                    "skill": skill,
+                    "score": float(similarity)
+                })
+        
+        # Sort by similarity
+        results.sort(key=lambda x: x["score"], reverse=True)
+        
+        # Format output
+        formatted = []
+        for item in results[:limit]:
+            formatted.append({
+                "name": item["skill"].name,
+                "title": item["skill"].title,
+                "score": round(item["score"], 3),
+                "match_reason": "semantic similarity",
+                "search_method": "embedding"
+            })
+        
+        return formatted
+    
+    def is_ready(self) -> bool:
+        return self.model is not None
+
+class SearchManager:
+    def __init__(self, skills_manager: 'SkillsManager'):
+        self.keyword_search = KeywordSearchStrategy()
+        self.embedding_search = EmbeddingSearchStrategy()
+        self.skills_manager = skills_manager
+        self._loading_thread = None
+        self._loading_embeddings = False
+        
+        # Start loading embeddings in background
+        self.start_embedding_loader()
+
+    def search(self, query: str, skills: List[SkillMetadata], limit: int):
+        """Use best available strategy"""
+        if self.embedding_search.is_ready():
+            return self.embedding_search.search(query, skills, limit)
+        else:
+            # Fallback to keyword search
+            return self.keyword_search.search(query, skills, limit)
+    
+    def get_search_status(self) -> Dict[str, Any]:
+        """For debugging/monitoring"""
+        return {
+            "current_strategy": "embedding" if self.embedding_search.is_ready() else "keyword",
+            "embedding_ready": self.embedding_search.is_ready(),
+            "loading_in_progress": self._loading_embeddings
         }
 
+    def start_embedding_loader(self):
+        """Non-blocking: Start loading embeddings in background"""
+        if self._loading_embeddings:
+            return  # Already loading
+        
+        self._loading_embeddings = True
+        self._loading_thread = threading.Thread(
+            target=self._load_embeddings_background,
+            daemon=True  # Dies when main thread dies
+        )
+        self._loading_thread.start()
+    
+    def _load_embeddings_background(self):
+        """Runs in background thread"""
+        import time
+        timeout = 600  # 10 minutes max
+        start_time = time.time()
+
+        try:
+            # Try loading from cache first
+            if self.embedding_search.load_cache():
+                # Still need to load model for new searches
+                from sentence_transformers import SentenceTransformer
+                self.embedding_search.model = SentenceTransformer('all-MiniLM-L6-v2')
+                print("[SearchManager] Embedding model ready (from cache)!")
+                return
+
+            print("[SearchManager] Loading embedding model (max 10 min)...")
+            
+            # Import only when needed
+            import torch  # Check if PyTorch is available
+            from sentence_transformers import SentenceTransformer
+            
+            print("[SearchManager] Downloading model (if needed)...")
+            model = SentenceTransformer('all-MiniLM-L6-v2')  # ~80MB
+            
+            # Pre-compute embeddings for all skills
+            print("[SearchManager] Computing embeddings for skills...")
+            skills = self.skills_manager.get_all_skills_metadata()
+            embeddings = {}
+
+            for i, skill in enumerate(skills):
+                # Check for timeout
+                if time.time() - start_time > timeout:
+                    raise TimeoutError("Embedding model loading timed out")
+
+                text = f"{skill.title} {skill.description} {' '.join(skill.keywords)}"
+                embeddings[skill.name] = model.encode(text, convert_to_tensor=False)
+
+                # Progress indicator every 10 skills
+                if (i + 1) % 10 == 0:
+                    print(f"[SearchManager] Processed {i + 1}/{len(skills)} skills...")
+
+            # Atomic update
+            self.embedding_search.model = model
+            self.embedding_search.embeddings_cache = embeddings
+            
+            # Save to cache
+            self.embedding_search.save_cache()
+
+            print(f"[SearchManager] Embedding model ready! Pre-computed {len(embeddings)} skills.")
+            
+        except Exception as e:
+            print(f"[SearchManager] Failed to load embeddings: {e}")
+            print("[SearchManager] Falling back to keyword search permanently.")
+        finally:
+            self._loading_embeddings = False
 
 # ============================================================================
 # Skills Manager (Single Responsibility: Manage Skills State)
@@ -114,6 +350,9 @@ class SkillsManager:
         
         # Initialize by scanning directories
         self._scan_directories()
+
+        # Add search manager
+        self.search_manager = SearchManager(self)
     
 
     def _scan_directories(self) -> None:
@@ -168,14 +407,9 @@ class SkillsManager:
             description=frontmatter.get('description', ''),
             keywords=frontmatter.get('keywords', []),
             version=frontmatter.get('version', '1.0.0'),
-            auto_activate=frontmatter.get('auto_activate', True),
-            estimated_tokens=self._estimate_tokens(full_content)
+            auto_activate=frontmatter.get('auto_activate', True)
         )
     
-    @staticmethod
-    def _estimate_tokens(text: str) -> int:
-        """Rough token estimation: 1 token ≈ 4 characters"""
-        return len(text) // 4
     
     def get_all_skills_metadata(self) -> List[SkillMetadata]:
         """Get metadata for all available skills (lightweight)"""
@@ -184,13 +418,6 @@ class SkillsManager:
     def get_loaded_skill_names(self) -> List[str]:
         """Get names of currently loaded skills"""
         return list(self._loaded_skills.keys())
-    
-    def get_total_loaded_tokens(self) -> int:
-        """Calculate total tokens from loaded skills"""
-        return sum(
-            skill_data['tokens'] 
-            for skill_data in self._loaded_skills.values()
-        )
     
     def is_skill_loaded(self, skill_name: str) -> bool:
         """Check if skill is already loaded"""
@@ -223,7 +450,6 @@ class SkillsManager:
                 skill_name=skill_name,
                 content=None,  # Don't return content again to save tokens
                 message=f"Skill '{skill_name}' is already loaded. Use force_reload=true to reload.",
-                tokens_loaded=existing['tokens'],
                 loaded_at=existing['loaded_at']
             )
         
@@ -247,7 +473,6 @@ class SkillsManager:
             loaded_at = datetime.now().isoformat()
             self._loaded_skills[skill_name] = {
                 'content': content,
-                'tokens': metadata.estimated_tokens,
                 'loaded_at': loaded_at,
                 'metadata': metadata
             }
@@ -257,7 +482,6 @@ class SkillsManager:
                 skill_name=skill_name,
                 content=content,
                 message=f"Skill '{skill_name}' loaded successfully",
-                tokens_loaded=metadata.estimated_tokens,
                 loaded_at=loaded_at
             )
             
@@ -340,6 +564,15 @@ class SkillsManager:
                 "error": f"Failed to add directory: {str(e)}"
             }
 
+    def search_skills(self, query: str, limit: int = 5) -> List[Dict]:
+        """Search for relevant skills"""
+        all_skills = self.get_all_skills_metadata()
+        return self.search_manager.search(query, all_skills, limit)
+    
+    def get_search_status(self) -> Dict[str, Any]:
+        """Get current search backend status"""
+        return self.search_manager.get_search_status()
+
 
 
 # ============================================================================
@@ -389,13 +622,11 @@ def list_skills() -> SkillsListResult:
     """
     skills = skills_manager.get_all_skills_metadata()
     loaded_names = skills_manager.get_loaded_skill_names()
-    total_tokens = skills_manager.get_total_loaded_tokens()
     
     return SkillsListResult(
         skills=skills,
         total_available=len(skills),
-        currently_loaded=loaded_names,
-        total_tokens_loaded=total_tokens
+        currently_loaded=loaded_names
     )
 
 
@@ -450,46 +681,86 @@ def load_skill(
 
 
 
-from sklearn.feature_extraction.text import TfidfVectorizer  # For scoring; lightweight
-from sklearn.metrics.pairwise import cosine_similarity
-import numpy as np
 
 @mcp.tool(
-    name="suggest_relevant_skills",
-    description="Given a user query, suggest top relevant skills with scores. Use this BEFORE loading to minimize context bloat. Returns top 3-5 with match reasons."
+    name="search_skills",
+    description="""
+    Search for relevant skills using intelligent query matching.
+    
+    This tool automatically uses the best available search method:
+    - Keyword matching (fast, always available)
+    - Semantic search (better quality, loads in background)
+    
+    The AI doesn't need to know which method is used - just call this tool
+    and get ranked results based on relevance to your query.
+    
+    RECOMMENDED WORKFLOW:
+    1. Call search_skills(query="user's question")
+    2. Review top 3-5 suggestions
+    3. Load the most relevant skills using load_skill()
+    
+    Args:
+        query: The user's question or topic
+        limit: Maximum number of suggestions (default: 5)
+    
+    Returns:
+        List of relevant skills with scores and match reasons
+    """
 )
-def suggest_relevant_skills(query: str, max_suggestions: int = 3) -> Dict[str, Any]:
-    all_metadata = skills_manager.get_all_skills_metadata()
-    if not all_metadata:
-        return {"suggestions": [], "message": "No skills available"}
-    
-    # Quick TF-IDF scoring
-    documents = [f"{m.description} {' '.join(m.keywords)} {m.name}" for m in all_metadata]
-    vectorizer = TfidfVectorizer(stop_words='english', max_features=100)
-    tfidf_matrix = vectorizer.fit_transform(documents + [query])  # Include query
-    query_vec = tfidf_matrix[-1:]
-    doc_vecs = tfidf_matrix[:-1]
-    
-    scores = cosine_similarity(query_vec, doc_vecs)[0]
-    scored_skills = sorted(zip(all_metadata, scores), key=lambda x: x[1], reverse=True)
-    
-    suggestions = []
-    for skill, score in scored_skills[:max_suggestions]:
-        if score > 0.1:  # Threshold for relevance
-            suggestions.append({
-                "name": skill.name,
-                "title": skill.title,
-                "relevance_score": float(score),
-                "reason": f"Matches on: {', '.join(set(skill.keywords) & set(query.lower().split()))}"
-            })
+def search_skills(query: str, limit: int = 5) -> Dict[str, Any]:
+    """Search for relevant skills based on query"""
+    results = skills_manager.search_skills(query, limit)
+    status = skills_manager.get_search_status()
     
     return {
-        "suggestions": suggestions,
-        "total_scored": len(scored_skills),
+        "results": results,
+        "total_found": len(results),
         "query": query,
-        "advice": "Load suggested skills via load_skill for best results."
+        "search_method": status["current_strategy"],
+        "note": "Using keyword search" if status["current_strategy"] == "keyword" 
+                else "Using semantic search (higher quality)"
     }
 
+# Optional: Tool to check search status
+@mcp.tool(
+    name="get_search_status",
+    description="Check which search backend is currently active (for debugging)"
+)
+def get_search_status() -> Dict[str, Any]:
+    """Get current search backend status"""
+    return skills_manager.get_search_status()
+
+@mcp.tool(
+    name="get_embedding_error",
+    description="Get detailed error info if semantic search failed to load"
+)
+def get_embedding_error() -> Dict[str, Any]:
+    """Get embedding loading error details"""
+    status = skills_manager.get_search_status()
+    
+    if status["embedding_ready"]:
+        return {"error": None, "message": "Embeddings loaded successfully"}
+    
+    # Check common issues
+    issues = []
+    
+    try:
+        import sentence_transformers
+    except ImportError:
+        issues.append("sentence-transformers not installed. Run: pip install sentence-transformers")
+    
+    try:
+        import torch
+    except ImportError:
+        issues.append("PyTorch not installed. Run: pip install torch")
+    
+    return {
+        "error": "Embeddings failed to load",
+        "current_search": "keyword (fallback)",
+        "potential_issues": issues,
+        "recommendation": "Install missing dependencies or use keyword search"
+    }
+    
 @mcp.tool(
     name="add_skills_directory",
     description="Add a new directory to scan for skills. Returns result dict with success status."
