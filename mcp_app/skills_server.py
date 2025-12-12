@@ -2,7 +2,6 @@
 MCP Skills Server - Clean Architecture with Best Practices
 Following the "Definition vs. Executor" pattern with protocol-driven design
 """
-
 from fastmcp import FastMCP
 from pydantic import BaseModel, Field, ConfigDict
 from typing import List, Optional, Dict, Any
@@ -579,11 +578,11 @@ class SkillsManager:
 # MCP Server Setup
 # ============================================================================
 
-mcp = FastMCP("CAPL Skills Server")
-
 # Global instance (Singleton pattern for this use case)
 skills_manager = SkillsManager()
 
+ 
+mcp = FastMCP("Skills Server")
 
 # ============================================================================
 # MCP Tools (Protocol-Driven Interface)
@@ -763,7 +762,7 @@ def get_embedding_error() -> Dict[str, Any]:
     
 @mcp.tool(
     name="add_skills_directory",
-    description="Add a new directory to scan for skills. Returns result dict with success status."
+    description="Add a new directory to scan for skills files. Returns result dict with success status."
 )
 def add_skills_directory(path: str) -> Dict[str, Any]:
     """
@@ -771,71 +770,6 @@ def add_skills_directory(path: str) -> Dict[str, Any]:
     Returns result dict with success status.
     """
     return skills_manager.add_skills_directory(path)
-# ============================================================================
-# Usage Documentation
-# ============================================================================
-
-"""
-USAGE PATTERN FOR AI AGENTS:
-
-1. Discovery Phase (ALWAYS START HERE):
-   ```
-   result = list_skills()
-   # Analyze result.skills to find relevant ones based on:
-   # - description field
-   # - keywords field
-   # - skill_name field
-   ```
-
-2. Loading Phase (LOAD ONLY WHAT YOU NEED):
-   ```
-   # Load relevant skills
-   skill1 = load_skill(skill_name="capl-arethil")
-   if skill1.status == "loaded":
-       # Use skill1.content for context
-       pass
-   elif skill1.status == "already_loaded":
-       # Skill is already in context, no need to load again
-       pass
-   ```
- 
-EXAMPLE CONVERSATION FLOW:
-
-User: "How do I send an ARETHIL frame in CAPL?"
-
-AI reasoning:
-1. Call list_skills() to discover available skills
-2. Analyze metadata: "capl-arethil" has keywords ["arethil", "capl"]
-   and description mentions "ARETHIL library"
-3. Call load_skill(skill_name="capl-arethil")
-4. Use the loaded content to answer the question with accurate code
-
-User: "Now I need to work with the database"
-
-AI reasoning:
-1. Current context has "capl-arethil" loaded
-2. User is switching domains
-4. Call load_skill(skill_name="capl-database")
-5. Answer using database skill content
-
-ANTI-PATTERNS TO AVOID:
-
-❌ Loading all skills at once
-   - Wastes context tokens
-   - May hit context limits
-
-❌ Loading the same skill multiple times
-   - Check status field in load_skill response
-   - Use force_reload only when needed
-
-❌ Not calling list_skills first
-   - You won't know what skills are available
-   - May request skills that don't exist
-
-✅ BEST PRACTICE:
-   Always call list_skills → analyze metadata → load specific skills
-"""
-
 
 # ============================================================================
 # Server Entry Point
