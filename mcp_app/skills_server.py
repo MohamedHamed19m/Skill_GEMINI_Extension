@@ -21,17 +21,13 @@ class SkillMetadata(BaseModel):
     title: str = Field(description="Human-readable title")
     description: str = Field(description="What this skill provides")
     keywords: List[str] = Field(description="Keywords for relevance matching")
-    version: str = Field(default="1.0.0")
-    auto_activate: bool = Field(default=True)
     
     model_config = ConfigDict(json_schema_extra = {
             "example": {
                 "name": "capl-arethil",
                 "title": "CAPL ARETHIL Library Expert",
                 "description": "Expert knowledge of Vector CAPL ARETHIL library",
-                "keywords": ["arethil", "ethernet", "capl"],
-                "version": "1.0.0",
-                "auto_activate": True
+                "keywords": ["arethil", "ethernet", "capl"]
             }
         })
 
@@ -404,9 +400,7 @@ class SkillsManager:
             name=frontmatter.get('name', file_path.parent.name),
             title=frontmatter.get('title', file_path.parent.name.replace('-', ' ').title()),
             description=frontmatter.get('description', ''),
-            keywords=frontmatter.get('keywords', []),
-            version=frontmatter.get('version', '1.0.0'),
-            auto_activate=frontmatter.get('auto_activate', True)
+            keywords=frontmatter.get('keywords', [])
         )
     
     
@@ -563,14 +557,28 @@ class SkillsManager:
                 "error": f"Failed to add directory: {str(e)}"
             }
 
-    def search_skills(self, query: str, limit: int = 5) -> List[Dict]:
-        """Search for relevant skills"""
+    def search_skills(self, query: str, limit: int = 5) -> Dict[str, Any]:
+        """Search for relevant skills and return formatted results."""
         all_skills = self.get_all_skills_metadata()
-        return self.search_manager.search(query, all_skills, limit)
-    
-    def get_search_status(self) -> Dict[str, Any]:
-        """Get current search backend status"""
-        return self.search_manager.get_search_status()
+        
+        # The search_manager.search method now returns results with search_method included
+        results_from_search_manager = self.search_manager.search(query, all_skills, limit)
+        
+        # Determine the search method used for the results
+        search_method_used = "keyword"
+        if results_from_search_manager:
+            # Assume all results from a single call use the same search method
+            search_method_used = results_from_search_manager[0].get("search_method", "keyword")
+            
+        note_message = "Using keyword search" if search_method_used == "keyword" else "Using semantic search (higher quality)"
+
+        return {
+            "results": results_from_search_manager,
+            "total_found": len(results_from_search_manager),
+            "query": query,
+            "search_method": search_method_used,
+            "note": note_message
+        }
 
 
 
@@ -708,57 +716,20 @@ def load_skill(
 )
 def search_skills(query: str, limit: int = 5) -> Dict[str, Any]:
     """Search for relevant skills based on query"""
-    results = skills_manager.search_skills(query, limit)
-    status = skills_manager.get_search_status()
+    results_with_method = skills_manager.search_skills(query, limit)
     
     return {
-        "results": results,
-        "total_found": len(results),
+        "results": results_with_method["results"],
+        "total_found": results_with_method["total_found"],
         "query": query,
-        "search_method": status["current_strategy"],
-        "note": "Using keyword search" if status["current_strategy"] == "keyword" 
-                else "Using semantic search (higher quality)"
+        "search_method": results_with_method["search_method"],
+        "note": results_with_method["note"]
     }
 
 # Optional: Tool to check search status
-@mcp.tool(
-    name="get_search_status",
-    description="Check which search backend is currently active (for debugging)"
-)
-def get_search_status() -> Dict[str, Any]:
-    """Get current search backend status"""
-    return skills_manager.get_search_status()
 
-@mcp.tool(
-    name="get_embedding_error",
-    description="Get detailed error info if semantic search failed to load"
-)
-def get_embedding_error() -> Dict[str, Any]:
-    """Get embedding loading error details"""
-    status = skills_manager.get_search_status()
-    
-    if status["embedding_ready"]:
-        return {"error": None, "message": "Embeddings loaded successfully"}
-    
-    # Check common issues
-    issues = []
-    
-    try:
-        import sentence_transformers
-    except ImportError:
-        issues.append("sentence-transformers not installed. Run: pip install sentence-transformers")
-    
-    try:
-        import torch
-    except ImportError:
-        issues.append("PyTorch not installed. Run: pip install torch")
-    
-    return {
-        "error": "Embeddings failed to load",
-        "current_search": "keyword (fallback)",
-        "potential_issues": issues,
-        "recommendation": "Install missing dependencies or use keyword search"
-    }
+
+
     
 @mcp.tool(
     name="add_skills_directory",
