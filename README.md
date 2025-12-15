@@ -15,6 +15,8 @@ The MCP server is defined in `mcp_app/skills_server.py`, and custom commands are
 
 This project uses `uv` for package and environment management.
 
+### For Developers (Local Setup)
+
 1.  **Install `uv`:**
 
     If you don't have `uv` installed, follow the official installation instructions for your OS. For example, on macOS/Linux:
@@ -47,12 +49,40 @@ This project uses `uv` for package and environment management.
     .venv\Scripts\activate
     ```
 
-4.  **Run the Server:**
+4.  **Run the Server (for local testing/development):**
 
     Once the environment is activated, you can start the server:
     ```bash
     python mcp_app/skills_server.py
     ```
+
+### For Users (Gemini CLI Extension Installation)
+
+To install this repository as a Gemini CLI extension:
+
+1.  **Ensure `uv` is installed:** Follow the instructions above to install `uv` if you haven't already. `uv` is required to run the MCP server embedded within this extension.
+2.  **Install the extension:**
+    ```bash
+    gemini extensions install https://github.com/MohamedHamed19m/Skill_MCP_Server.git
+    ```
+    (Replace `https://github.com/MohamedHamed19m/Skill_MCP_Server.git` with the actual public repository URL if it changes.)
+
+    You can specify a branch, tag, or commit using `--ref`, e.g.:
+    ```bash
+    gemini extensions install https://github.com/MohamedHamed19m/Skill_MCP_Server.git --ref=main
+    ```
+
+After installation, restart your Gemini CLI session to ensure the extension is loaded.
+
+## Releasing
+
+This extension can be easily distributed via its Git repository. Users can install it directly using the Gemini CLI:
+
+```bash
+gemini extensions install https://github.com/MohamedHamed19m/Skill_MCP_Server.git
+```
+
+For more advanced releasing options, such as GitHub Releases for pre-built archives, refer to the [Gemini CLI Extension Releasing Guide](https://geminicli.com/docs/extensions/extension-releasing).
 
 ## Skill Structure
 
