@@ -64,6 +64,12 @@ Restart the Gemini CLI. The following commands will be available:
 - `load_skill(skill_name: str, force_reload: bool = False)`- Load full skill content into context.
 
 - `add_skills_directory(path: str)` - Add custom skills directory to scan.
+
+## Update Extension
+- gemini extensions update skills
+
+- gemini extensions update --all
+
 ## Skill Structure
 
 Skills are organized in a directory structure. The server scans the `skills` directory within the project.
