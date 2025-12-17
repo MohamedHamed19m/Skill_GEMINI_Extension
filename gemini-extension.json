@@ -1,6 +1,6 @@
 {
   "name": "skills",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Skills extension: Lazy-load domain expertise, context, and capabilities. Tools for discovery/loading skills.",
   "mcpServers": {
     "skills-server": {
