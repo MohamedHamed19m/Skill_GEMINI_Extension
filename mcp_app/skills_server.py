@@ -6,9 +6,7 @@ from fastmcp import FastMCP
 from pydantic import BaseModel, Field, ConfigDict
 from typing import List, Optional, Dict, Any
 from pathlib import Path
-from dataclasses import dataclass
 import yaml
-import json
 from datetime import datetime
 
 # ============================================================================
@@ -18,14 +16,12 @@ from datetime import datetime
 class SkillMetadata(BaseModel):
     """Lightweight skill metadata for discovery - returned by list_skills"""
     name: str = Field(description="Unique skill identifier")
-    title: str = Field(description="Human-readable title")
     description: str = Field(description="What this skill provides")
     keywords: List[str] = Field(description="Keywords for relevance matching")
     
     model_config = ConfigDict(json_schema_extra = {
             "example": {
                 "name": "capl-arethil",
-                "title": "CAPL ARETHIL Library Expert",
                 "description": "Expert knowledge of Vector CAPL ARETHIL library",
                 "keywords": ["arethil", "ethernet", "capl"]
             }
@@ -126,7 +122,6 @@ class KeywordSearchStrategy(SearchStrategy):
         for item in scored_skills[:limit]:
             results.append({
                 "name": item["skill"].name,
-                "title": item["skill"].title,
                 "score": item["score"],
                 "match_reason": "; ".join(item["matches"]),
                 "search_method": "keyword"
@@ -205,7 +200,6 @@ class EmbeddingSearchStrategy(SearchStrategy):
         for item in results[:limit]:
             formatted.append({
                 "name": item["skill"].name,
-                "title": item["skill"].title,
                 "score": round(item["score"], 3),
                 "match_reason": "semantic similarity",
                 "search_method": "embedding"
@@ -235,13 +229,6 @@ class SearchManager:
             # Fallback to keyword search
             return self.keyword_search.search(query, skills, limit)
     
-    def get_search_status(self) -> Dict[str, Any]:
-        """For debugging/monitoring"""
-        return {
-            "current_strategy": "embedding" if self.embedding_search.is_ready() else "keyword",
-            "embedding_ready": self.embedding_search.is_ready(),
-            "loading_in_progress": self._loading_embeddings
-        }
 
     def start_embedding_loader(self):
         """Non-blocking: Start loading embeddings in background"""
@@ -289,7 +276,7 @@ class SearchManager:
                 if time.time() - start_time > timeout:
                     raise TimeoutError("Embedding model loading timed out")
 
-                text = f"{skill.title} {skill.description} {' '.join(skill.keywords)}"
+                text = f"{skill.description} {' '.join(skill.keywords)}"
                 embeddings[skill.name] = model.encode(text, convert_to_tensor=False)
 
                 # Progress indicator every 10 skills
@@ -310,7 +297,6 @@ class SearchManager:
             print("[SearchManager] Falling back to keyword search permanently.")
         finally:
             self._loading_embeddings = False
-
 # ============================================================================
 # Skills Manager (Single Responsibility: Manage Skills State)
 # ============================================================================
@@ -377,6 +363,7 @@ class SkillsManager:
                     }
                 except Exception as e:
                     print(f"Warning: Failed to parse {md_file.name} in folder {md_file.parent.name}: {e}")
+
     def _parse_skill_metadata(self, file_path: Path) -> SkillMetadata:
         """
         Parse YAML frontmatter from skill file and extract metadata only.
@@ -393,12 +380,13 @@ class SkillsManager:
             raise ValueError(f"Invalid frontmatter format in {file_path.name} in {file_path.parent.name}")
         
         frontmatter = yaml.safe_load(parts[1])
-        full_content = parts[2].strip()
         
+        # Always use folder name as unique identifier
+        skill_name = file_path.parent.name
+
         # Create metadata object (Pydantic validation happens here)
         return SkillMetadata(
-            name=frontmatter.get('name', file_path.parent.name),
-            title=frontmatter.get('title', file_path.parent.name.replace('-', ' ').title()),
+            name=skill_name,  # ← Always from folder
             description=frontmatter.get('description', ''),
             keywords=frontmatter.get('keywords', [])
         )
@@ -484,27 +472,7 @@ class SkillsManager:
                 skill_name=skill_name,
                 message=f"Failed to load skill: {str(e)}"
             )
-    
-    def unload_skill(self, skill_name: str) -> bool:
-        """Unload a skill from memory"""
-        if skill_name in self._loaded_skills:
-            del self._loaded_skills[skill_name]
-            return True
-        return False
-    
-    def reload_directory(self) -> Dict[str, Any]:
-        """Rescan skills directory for new or updated skills"""
-        old_count = len(self._available_skills)
-        self._scan_directories()
-        new_count = len(self._available_skills)
         
-        return {
-            "previous_count": old_count,
-            "current_count": new_count,
-            "new_skills": new_count - old_count,
-            "skill_names": [s['metadata'].name for s in self._available_skills.values()]
-        }
-
     def add_skills_directory(self, path: str) -> Dict[str, Any]:
         """
         Add a new directory to scan for skills.

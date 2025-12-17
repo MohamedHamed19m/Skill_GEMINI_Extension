@@ -11,24 +11,13 @@ This project is intended to be used as a Gemini extension. The `gemini-extension
 
 The MCP server is defined in `mcp_app/skills_server.py`, and custom commands are located in the `commands` directory. The skills themselves are located in the `skills` directory.
 
-## Installation
+## 1- Installation
 
 This project uses `uv` for package and environment management.
 
 ### For Developers (Local Setup)
 
-1.  **Install `uv`:**
-
-    If you don't have `uv` installed, follow the official installation instructions for your OS. For example, on macOS/Linux:
-    ```bash
-    curl -LsSf https://astral.sh/uv/install.sh | sh
-    ```
-    On Windows:
-    ```powershell
-    irm https://astral.sh/uv/install.ps1 | iex
-    ```
-
-2.  **Create and Sync the Virtual Environment:**
+1.  **Create and Sync the Virtual Environment:**
 
     Run the following command to create a virtual environment named `.venv` and install the dependencies from `pyproject.toml`:
     ```bash
@@ -36,14 +25,10 @@ This project uses `uv` for package and environment management.
     uv sync
     ```
 
-3.  **Activate the Virtual Environment:**
+2.  **Activate the Virtual Environment:**
 
     Before running the server, activate the environment.
-    
-    On macOS/Linux:
-    ```bash
-    source .venv/bin/activate
-    ```
+
     On Windows:
     ```powershell
     .venv\Scripts\activate
@@ -63,27 +48,22 @@ To install this repository as a Gemini CLI extension:
 1.  **Ensure `uv` is installed:** Follow the instructions above to install `uv` if you haven't already. `uv` is required to run the MCP server embedded within this extension.
 2.  **Install the extension:**
     ```bash
-    gemini extensions install https://github.com/MohamedHamed19m/Skill_MCP_Server.git
-    ```
-    (Replace `https://github.com/MohamedHamed19m/Skill_MCP_Server.git` with the actual public repository URL if it changes.)
-
-    You can specify a branch, tag, or commit using `--ref`, e.g.:
-    ```bash
-    gemini extensions install https://github.com/MohamedHamed19m/Skill_MCP_Server.git --ref=main
+    gemini extensions install https://github.com/MohamedHamed19m/Skill_GEMINI_Extension
     ```
 
 After installation, restart your Gemini CLI session to ensure the extension is loaded.
 
-## Releasing
+## 2. Activate
 
-This extension can be easily distributed via its Git repository. Users can install it directly using the Gemini CLI:
+Restart the Gemini CLI. The following commands will be available:
 
-```bash
-gemini extensions install https://github.com/MohamedHamed19m/Skill_MCP_Server.git
-```
+- `list_skills()` - Lists all available skills with metadata (lightweight).
 
-For more advanced releasing options, such as GitHub Releases for pre-built archives, refer to the [Gemini CLI Extension Releasing Guide](https://geminicli.com/docs/extensions/extension-releasing).
+- `search_skills(query: str, limit: int = 5)` - Search for relevant skills using intelligent matching.
 
+- `load_skill(skill_name: str, force_reload: bool = False)`- Load full skill content into context.
+
+- `add_skills_directory(path: str)` - Add custom skills directory to scan.
 ## Skill Structure
 
 Skills are organized in a directory structure. The server scans the `skills` directory within the project.
@@ -104,15 +84,13 @@ The `SKILL.md` file can have a YAML frontmatter to provide metadata, for example
 
 ```yaml
 ---
-name: my-awesome-skill-override
-title: My Awesome Skill
 description: This is a skill that does awesome things.
 keywords: [awesome, skill]
 ---
 
 The rest of the file is the skill content.
 ```
-If the `name` is provided in the frontmatter, it will override the folder name.
+The skill name is always derived from the folder name. Any `name` field provided in the frontmatter will be ignored.
 
 ## AI Agent Workflow
 
@@ -146,4 +124,4 @@ If the `name` is provided in the frontmatter, it will override the folder name.
 - **After model loads:** Automatically upgrades to semantic search
 - **Transparent:** AI doesn't need to know which backend is active
 
-*This project is maintained by MohamedHamed19m.*
+*This project is maintained by MohamedHamed.*

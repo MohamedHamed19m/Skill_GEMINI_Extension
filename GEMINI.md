@@ -19,8 +19,8 @@ Your thought process:
 1. I need CAPL and ARETHIL knowledge
 2. Let me search for relevant skills
    → search_skills(query="CAPL someip")
-3. Top result: "CAPL-SomeIP-Skill" with high score
-4. Load it: load_skill(skill_name="CAPL-SomeIP-Skill")
+3. Top result: "capl-someip-skill" with high score
+4. Load it: load_skill(skill_name="capl-someip-skill")
 5. Use the loaded content to answer accurately
 ```
 
