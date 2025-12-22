@@ -4,7 +4,7 @@
   "description": "Skills extension: Lazy-load domain expertise, context, and capabilities. Tools for discovery/loading skills.",
   "mcpServers": {
     "skills-server": {
-      "command": "uv run python mcp_app\\skills_server.py",
+      "command": "uv run python -m mcp_app.skills_server",
       "cwd": "${extensionPath}",
       "env": {
         "SKILLS_DIR": "${extensionPath}${/}skills"
