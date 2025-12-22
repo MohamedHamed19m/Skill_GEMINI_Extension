@@ -9,6 +9,10 @@ from pathlib import Path
 import yaml
 from datetime import datetime
 
+ 
+import os
+Skill_dir = os.getenv("SKILLS_DIR")
+
 # ============================================================================
 # Core Data Models (Pydantic for validation)
 # ============================================================================
@@ -309,7 +313,7 @@ class SkillsManager:
     
     def __init__(self, default_skills_dirs: Optional[List[str]] = None):
         # Default directory
-        default_dir = Path(__file__).parent.parent / "skills"
+        default_dir = Skill_dir
         
         if default_skills_dirs:
             self.default_skills_dirs = [Path(d) for d in default_skills_dirs]
