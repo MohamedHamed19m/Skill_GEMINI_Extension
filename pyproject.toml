@@ -1,6 +1,6 @@
 [project]
 name = "skill-mcp-server"
-version = "0.1.1"
+version = "0.1.2"
 description = "An MCP (Model Context Protocol) server for loading skills on demand, designed to be used as a Gemini extension."
 authors = [{ name = "MohamedHamed19m", email = "user@example.com" }]
 readme = "README.md"
