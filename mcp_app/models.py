@@ -4,7 +4,6 @@
 from fastmcp import FastMCP
 from pydantic import BaseModel, Field, ConfigDict
 from typing import List, Optional
-
 # ============================================================================
 # Core Data Models (Pydantic for validation)
 # ============================================================================
@@ -30,15 +29,13 @@ class SkillLoadResult(BaseModel):
     skill_name: str
     content: Optional[str] = Field(None, description="Full skill content if loaded")
     message: str = Field(description="Human-readable status message")
-    loaded_at: Optional[str] = Field(None, description="ISO timestamp when loaded")
     
     model_config = ConfigDict(json_schema_extra = {
             "example": {
                 "status": "loaded",
                 "skill_name": "capl-arethil",
                 "content": "# CAPL ARETHIL Expert\n...",
-                "message": "Skill loaded successfully",
-                "loaded_at": "2024-12-08T10:30:00"
+                "message": "Skill loaded successfully"
             }
         })
 

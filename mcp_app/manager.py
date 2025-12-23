@@ -1,56 +1,29 @@
 # manager.py
 # SkillsManager (Core logic)
-
 from typing import List, Optional, Dict, Any
-
 from pathlib import Path
-
-from datetime import datetime
-
 import yaml
-
-
-
 from mcp_app.models import SkillMetadata, SkillLoadResult
-
 from mcp_app.search import SearchManager
 
 
-
-
-
 # ============================================================================
-
 # Skills Manager (Single Responsibility: Manage Skills State)
-
 # ============================================================================
 
-
+SKILL_MARKDOWN_FILENAME = "SKILL.md"
 
 class SkillsManager:
-
     """
-
     Manages skill lifecycle: scanning, loading, tracking state.
-
     Follows Single Responsibility Principle - only manages skills, doesn't make decisions.
-
     """
-
-    
-
     def __init__(self, default_skills_dirs: Optional[List[str]] = None):
-
-        
-
         if default_skills_dirs:
-
             self.default_skills_dirs = [Path(d) for d in default_skills_dirs]
-
         else:
-
             self.default_skills_dirs = [Path("skills")]
-        
+      
         # Active directories (starts with defaults)
         self.active_skills_dirs: List[Path] = self.default_skills_dirs.copy()
         
@@ -72,7 +45,7 @@ class SkillsManager:
     
 
     def _scan_directories(self) -> None:
-        """Scan all active skills directories and parse metadata from all SKILL.md files"""
+        """Scan all active skills directories and parse metadata from all SKILL_MARKDOWN_FILENAME files"""
         self._available_skills.clear()
         
         for skills_dir in self.active_skills_dirs:
@@ -80,7 +53,7 @@ class SkillsManager:
                 print(f"Warning: Skills directory does not exist: {skills_dir}")
                 continue
                 
-            for md_file in skills_dir.rglob("SKILL.md"):
+            for md_file in skills_dir.rglob(SKILL_MARKDOWN_FILENAME):
                 try:
                     metadata = self._parse_skill_metadata(md_file)
                     skill_name = metadata.name
@@ -150,26 +123,24 @@ class SkillsManager:
         Design Pattern: This method returns a Result object, not raw data.
         This allows the caller to handle different outcomes cleanly.
         """
-        # Check if skill exists
+        # [1]. Check if skill exists
         if not self.skill_exists(skill_name):
             return SkillLoadResult(
                 status="error",
                 skill_name=skill_name,
+                content=None,  # Don't return content again to save tokens
                 message=f"Skill '{skill_name}' not found in available skills"
             )
         
-        # Check if already loaded (unless force reload)
+        # [2]. Check if already loaded (unless force reload)
         if self.is_skill_loaded(skill_name) and not force_reload:
-            existing = self._loaded_skills[skill_name]
             return SkillLoadResult(
                 status="already_loaded",
                 skill_name=skill_name,
                 content=None,  # Don't return content again to save tokens
-                message=f"Skill '{skill_name}' is already loaded. Use force_reload=true to reload.",
-                loaded_at=existing['loaded_at']
+                message=f"Skill '{skill_name}' is already loaded. Use force_reload=true to reload."
             )
-        
-        # Load the skill content
+        # [3]. Load the skill content from file
         try:
             skill_info = self._available_skills[skill_name]
             metadata = skill_info['metadata']
@@ -186,10 +157,8 @@ class SkillsManager:
                 content = parts[2].strip() if len(parts) >= 3 else content
             
             # Store in loaded skills
-            loaded_at = datetime.now().isoformat()
             self._loaded_skills[skill_name] = {
                 'content': content,
-                'loaded_at': loaded_at,
                 'metadata': metadata
             }
             
@@ -198,13 +167,13 @@ class SkillsManager:
                 skill_name=skill_name,
                 content=content,
                 message=f"Skill '{skill_name}' loaded successfully",
-                loaded_at=loaded_at
             )
             
         except Exception as e:
             return SkillLoadResult(
                 status="error",
                 skill_name=skill_name,
+                content=None,
                 message=f"Failed to load skill: {str(e)}"
             )
         
@@ -216,7 +185,7 @@ class SkillsManager:
         try:
             dir_path = Path(path).expanduser().resolve()
             
-            # Validate directory exists
+            # [0.1]. Validate directory exists
             if not dir_path.exists():
                 return {
                     "success": False,
@@ -229,7 +198,7 @@ class SkillsManager:
                     "error": f"Path is not a directory: {path}"
                 }
             
-            # Check if already added (normalize paths for comparison)
+            # [0.2]. Check if already added (normalize paths for comparison)
             if dir_path in self.active_skills_dirs:
                 return {
                     "success": True,
@@ -237,10 +206,10 @@ class SkillsManager:
                     "active_directories": [str(d) for d in self.active_skills_dirs]
                 }
             
-            # Add to active directories
+            # [1]. Add to active directories
             self.active_skills_dirs.append(dir_path)
             
-            # Rescan to include new directory
+            # [2]. Rescan to include new directory
             old_count = len(self._available_skills)
             self._scan_directories()
             new_count = len(self._available_skills)

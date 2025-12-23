@@ -6,17 +6,14 @@ from typing import Dict, Any
 
 from mcp_app import skills_manager
 from mcp_app.models import SkillsListResult, SkillLoadResult
+from mcp_app.version import __version__
 
 
-mcp = FastMCP("Skills Server")
+mcp = FastMCP(name="Skills Server" , version=__version__)
 
 # ============================================================================
 # MCP Tools (Protocol-Driven Interface)
 # ============================================================================
-
-
-
-
 @mcp.tool(
     name="list_skills",
     description="""
