@@ -54,3 +54,11 @@ class SkillsListResult(BaseModel):
             }
         })
 
+
+class AddDirectoryResult(BaseModel):
+    """Result returned by add_skills_directory tool"""
+    success: bool = Field(description="Whether the directory was added and scanned")
+    message: str = Field(description="Status message")
+    error: Optional[str] = Field(None, description="Error message if success is False")
+    active_directories: List[str] = Field(default_factory=list, description="Current list of active skills directories")
+    new_skills_found: int = Field(default=0, description="Number of new skills found in the added directory")

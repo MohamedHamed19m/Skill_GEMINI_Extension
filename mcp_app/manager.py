@@ -3,7 +3,7 @@
 from typing import List, Optional, Dict, Any
 from pathlib import Path
 import yaml
-from mcp_app.models import SkillMetadata, SkillLoadResult
+from mcp_app.models import SkillMetadata, SkillLoadResult, AddDirectoryResult
 from mcp_app.search import SearchManager
 
 
@@ -177,7 +177,7 @@ class SkillsManager:
                 message=f"Failed to load skill: {str(e)}"
             )
         
-    def add_skills_directory(self, path: str) -> Dict[str, Any]:
+    def add_skills_directory(self, path: str) -> AddDirectoryResult:
         """
         Add a new directory to scan for skills.
         Returns result dict with success status.
@@ -187,24 +187,29 @@ class SkillsManager:
             
             # [0.1]. Validate directory exists
             if not dir_path.exists():
-                return {
-                    "success": False,
-                    "error": f"Directory does not exist: {path}"
-                }
+                return AddDirectoryResult(
+                    success=False,
+                    message="Failed to add directory",
+                    error=f"Directory does not exist: {path}",
+                    active_directories=[str(d) for d in self.active_skills_dirs]
+                )
             
             if not dir_path.is_dir():
-                return {
-                    "success": False,
-                    "error": f"Path is not a directory: {path}"
-                }
+                return AddDirectoryResult(
+                    success=False,
+                    message="Failed to add directory",
+                    error=f"Path is not a directory: {path}",
+                    active_directories=[str(d) for d in self.active_skills_dirs]
+                )
             
             # [0.2]. Check if already added (normalize paths for comparison)
             if dir_path in self.active_skills_dirs:
-                return {
-                    "success": True,
-                    "message": "Directory already in active paths",
-                    "active_directories": [str(d) for d in self.active_skills_dirs]
-                }
+                return AddDirectoryResult(
+                    success=True,
+                    message="Directory already in active paths",
+                    error=None,
+                    active_directories=[str(d) for d in self.active_skills_dirs]
+                )
             
             # [1]. Add to active directories
             self.active_skills_dirs.append(dir_path)
@@ -214,20 +219,21 @@ class SkillsManager:
             self._scan_directories()
             new_count = len(self._available_skills)
             
-            return {
-                "success": True,
-                "message": f"Directory added successfully: {dir_path}",
-                "active_directories": [str(d) for d in self.active_skills_dirs],
-                "skills_before": old_count,
-                "skills_after": new_count,
-                "new_skills_found": new_count - old_count
-            }
+            return AddDirectoryResult(
+                success=True,
+                message=f"Directory added successfully: {dir_path}",
+                error=None,
+                active_directories=[str(d) for d in self.active_skills_dirs],
+                new_skills_found=new_count - old_count
+            )
         
         except Exception as e:
-            return {
-                "success": False,
-                "error": f"Failed to add directory: {str(e)}"
-            }
+            return AddDirectoryResult(
+                success=False,
+                message="Unexpected error adding directory",
+                error=str(e),
+                active_directories=[str(d) for d in self.active_skills_dirs]
+            )
 
     def search_skills(self, query: str, limit: int = 5) -> Dict[str, Any]:
         """Search for relevant skills and return formatted results."""

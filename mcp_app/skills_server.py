@@ -5,7 +5,7 @@ from fastmcp import FastMCP
 from typing import Dict, Any
 
 from mcp_app import skills_manager
-from mcp_app.models import SkillsListResult, SkillLoadResult
+from mcp_app.models import SkillsListResult, SkillLoadResult, AddDirectoryResult
 from mcp_app.version import __version__
 
 
@@ -148,7 +148,7 @@ def search_skills(query: str, limit: int = 5) -> Dict[str, Any]:
     name="add_skills_directory",
     description="Add a new directory to scan for skills files. Returns result dict with success status."
 )
-def add_skills_directory(path: str) -> Dict[str, Any]:
+def add_skills_directory(path: str) -> AddDirectoryResult:
     """
     Add a new directory to scan for skills.
     Returns result dict with success status.
