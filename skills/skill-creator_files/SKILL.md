@@ -285,14 +285,15 @@ skill-name/
 │   └── *
 └── resources/ (optional)
     └── *
-- if you want the AI to execute your script mention it in the skill with this path ${extensionPath}
+
+- To reference or execute scripts, use a path starting with a forward slash `/`. These paths resolve relative to the **skills root directory** (`~/.gemini/extensions/Gemini-Skills/skills`).
+
 ex:
-if your skill name = skill-creator_files.
-${extensionPath}/Gemini_Skills/skills/your_skill_name.
+If your skill name is `skill-creator_files`:
+`/skill-creator_files/scripts/script.py`
 
-** ${extensionPath}/Gemini_Skills/skills/skill-creator_files/cripts/script.py **
+- If you need the AI to read extra resources, explicitly mention them in SKILL.md using the `/` path format.
 
-- if you need the AI to read extra resources explicitly mention them in SKILL.md with this path ${extensionPath}
 
 ### Step 6: Iterate
 

@@ -81,6 +81,17 @@ User needs comprehensive answer
 - Explaining fundamental principles that don't need specific examples
 - Don't skip discovery Call `list_skills()` or `search_skills()` first to find relevant skills
 
+# Extension Environment setup
+
+**System path configuration:**
+The **sklill root directory** is located at:
+`~/.gemini/extensions/Gemini-Skills/skills`
+**Path Resolution Rule:**
+whenever a prmpot or skill file refernces a script path that starts with a forward slash `/` (for example `/client-node-skill/scripts/...`), you must resolve it as a relative path from **sklill root directory**.
+**Example:**
+A script path `/client-node-skill/scripts/run.py` should be resolved to:
+`~/.gemini/extensions/Gemini-Skills/skills/client-node-skill/scripts/run.py`
+
 ## Quality Standards
 
 - Be Transparent: Tell users when you're loading skills
