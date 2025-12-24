@@ -6,7 +6,7 @@ keywords: ["skill file", "SKILL.md", "add skill","create skill"]
 
 # Skill Creator
 
-This skill provides guidance for creating effective skills.
+This skill provides guidance for creating effective skills suitable for Skill_GEMINI_Extension.
 
 ## About Skills
 
@@ -270,7 +270,29 @@ Do not include any other fields in YAML frontmatter.
 
 Write instructions for using the skill and its bundled resources.
 
-### Step 5: Iterate
+### Step 5: Folder Structure
+- skill folder is the skill name
+
+skill-name/
+├── SKILL.md (required)
+│   ├── YAML frontmatter metadata (required)
+│   │   ├── name: (required)
+│   │   └── description: (required)
+│   └── Markdown instructions (required)
+├── scripts/ (optional)
+│   └── *.py
+├── templates/ (optional)
+│   └── *
+└── resources/ (optional)
+    └── *
+- if you want the AI to execute your script mention it in the skill with this path ${extensionPath}
+ex:
+if your skill name = skill-creator_files.
+${extensionPath}/skills/skill-creator_files/scripts/script.py
+
+- if you need the ai to read extra resources explicitly mention them in SKILL.md with this path ${extensionPath}
+
+### Step 6: Iterate
 
 After testing the skill, users may request improvements. Often this happens right after using the skill, with fresh context of how the skill performed.
 
