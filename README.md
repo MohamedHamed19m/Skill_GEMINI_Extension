@@ -68,7 +68,7 @@ Restart the Gemini CLI. The following commands will be available:
 
 
 ## Update Extension
-- gemini extensions update Gemini_Skills
+- gemini extensions update Gemini-Skills
 
 - gemini extensions update --all
 
