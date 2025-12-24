@@ -64,6 +64,8 @@ Restart the Gemini CLI. The following commands will be available:
 - `load_skill(skill_name: str, force_reload: bool = False)`- Load full skill content into context.
 
 - `add_skills_directory(path: str)` - Add custom skills directory to scan.
+  **Note:** This automatically creates local shortcuts (symlinks/junctions) in the main `skills` folder. This ensures you can always reference skill resources using a consistent path: `${extensionPath}/skills/<skill-name>/...`
+
 
 ## Update Extension
 - gemini extensions update skills

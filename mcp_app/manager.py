@@ -3,6 +3,9 @@
 from typing import List, Optional, Dict, Any
 from pathlib import Path
 import yaml
+import os
+import platform
+import subprocess
 from mcp_app.models import SkillMetadata, SkillLoadResult, AddDirectoryResult
 from mcp_app.search import SearchManager
 
@@ -60,6 +63,11 @@ class SkillsManager:
                     
                     # Handle duplicates: first directory in list wins
                     if skill_name in self._available_skills:
+                        existing = self._available_skills[skill_name]
+                        # Check if it's physically the same file (e.g. symlink vs real path)
+                        if existing['path'].resolve() == md_file.resolve():
+                            continue
+
                         print(f"Warning: Duplicate skill '{skill_name}' found in {skills_dir}. "
                               f"Using version from {self._available_skills[skill_name]['source_dir']}")
                         continue
@@ -176,7 +184,36 @@ class SkillsManager:
                 content=None,
                 message=f"Failed to load skill: {str(e)}"
             )
+
+    def _create_skill_link(self, source_dir: Path, link_name: str) -> bool:
+        """Create a symlink/junction in the default skills directory pointing to source_dir"""
+        target_dir = self.default_skills_dirs[0]  # Main skills folder
+        link_path = target_dir / link_name
         
+        if link_path.exists():
+            # If it's already a link to the correct place, we are good
+            try:
+                if link_path.resolve() == source_dir.resolve():
+                    return True
+            except Exception:
+                pass
+            print(f"Skipping link creation for {link_name}: Path already exists.")
+            return False
+
+        try:
+            # On Windows, use mklink /J for directory junctions (no admin needed)
+            if platform.system() == "Windows":
+                # Use shell command for mklink
+                cmd = f'mklink /J "{link_path}" "{source_dir}"'
+                subprocess.run(cmd, shell=True, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            else:
+                # Unix-like symlink
+                os.symlink(source_dir, link_path, target_is_directory=True)
+            return True
+        except Exception as e:
+            print(f"Failed to create link for {link_name}: {e}")
+            return False
+
     def add_skills_directory(self, path: str) -> AddDirectoryResult:
         """
         Add a new directory to scan for skills.
@@ -202,26 +239,26 @@ class SkillsManager:
                     active_directories=[str(d) for d in self.active_skills_dirs]
                 )
             
-            # [0.2]. Check if already added (normalize paths for comparison)
-            if dir_path in self.active_skills_dirs:
-                return AddDirectoryResult(
-                    success=True,
-                    message="Directory already in active paths",
-                    error=None,
-                    active_directories=[str(d) for d in self.active_skills_dirs]
-                )
+            # 1. Create shortcuts for any skills found in the new directory
+            # Scan just this new directory for skills to link
+            links_created = 0
+            for md_file in dir_path.rglob(SKILL_MARKDOWN_FILENAME):
+                skill_dir = md_file.parent
+                if self._create_skill_link(skill_dir, skill_dir.name):
+                    links_created += 1
+
+            # 2. Add to active directories (if not already there)
+            if dir_path not in self.active_skills_dirs:
+                self.active_skills_dirs.append(dir_path)
             
-            # [1]. Add to active directories
-            self.active_skills_dirs.append(dir_path)
-            
-            # [2]. Rescan to include new directory
+            # 3. Rescan to include new directory
             old_count = len(self._available_skills)
             self._scan_directories()
             new_count = len(self._available_skills)
             
             return AddDirectoryResult(
                 success=True,
-                message=f"Directory added successfully: {dir_path}",
+                message=f"Directory added. Created {links_created} shortcuts.",
                 error=None,
                 active_directories=[str(d) for d in self.active_skills_dirs],
                 new_skills_found=new_count - old_count
