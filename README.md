@@ -59,7 +59,7 @@ Restart the Gemini CLI. The following commands will be available:
 
 - `list_skills()` - Lists all available skills with metadata (lightweight).
 
-- `search_skills(query: str, limit: int = 5)` - Search for relevant skills using intelligent matching.
+- `search_skills(query: str, limit: int = 5)` - Search for relevant skills using keyword matching.
 
 - `load_skill(skill_name: str, force_reload: bool = False)`- Load full skill content into context.
 
@@ -81,9 +81,18 @@ Each skill must be in its own directory. The directory name is the skill name. I
 Example structure:
 ```
 skills/
-└── my-awesome-skill/
-    ├── SKILL.md
-    └── some-other-file.txt
+└── skill-name/
+    ├── SKILL.md (required)
+    │   ├── YAML frontmatter metadata (required)
+    │   │   ├── name: (required)
+    │   │   └── description: (required)
+    │   └── Markdown instructions (required)
+    ├── scripts/ (optional)
+    │   └── *.py
+    ├── templates/ (optional)
+    │   └── *
+    └── resources/ (optional)
+        └── *
 ```
 
 In this example, the skill name is `my-awesome-skill`. The content of `SKILL.md` will be loaded as the skill's content. Any other files in the skill's directory are for reference and will not be loaded by the server.
@@ -125,11 +134,5 @@ The skill name is always derived from the folder name. Any `name` field provided
 2. **Manually filter** based on keywords/description
 
 3. **Load specific skills**
-
-## Search Quality
-
-- **First 5-10 minutes:** Uses fast keyword matching
-- **After model loads:** Automatically upgrades to semantic search
-- **Transparent:** AI doesn't need to know which backend is active
 
 *This project is maintained by MohamedHamed.*

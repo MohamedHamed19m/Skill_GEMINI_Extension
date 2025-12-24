@@ -288,7 +288,7 @@ skill-name/
 - if you want the AI to execute your script mention it in the skill with this path ${extensionPath}
 ex:
 if your skill name = skill-creator_files.
-${extensionPath}/skills/skill-creator_files/scripts/script.py
+${extensionPath}/scripts/script.py
 
 - if you need the ai to read extra resources explicitly mention them in SKILL.md with this path ${extensionPath}
 

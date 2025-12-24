@@ -1,6 +1,6 @@
 [project]
 name = "skill-mcp-server"
-version = "0.1.2"
+version = "0.2.2"
 description = "An MCP (Model Context Protocol) server for loading skills on demand, designed to be used as a Gemini extension."
 authors = [{ name = "MohamedHamed19m", email = "user@example.com" }]
 readme = "README.md"
@@ -8,11 +8,7 @@ requires-python = ">=3.10"
 dependencies = [
     "fastmcp",
     "pydantic",
-    "pyyaml",
-    "sentence-transformers",
-    "scikit-learn",
-    "numpy",
-    "torch"
+    "pyyaml"
 ]
 
 [project.optional-dependencies]

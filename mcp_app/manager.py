@@ -277,20 +277,12 @@ class SkillsManager:
         all_skills = self.get_all_skills_metadata()
         
         # The search_manager.search method now returns results with search_method included
-        results_from_search_manager = self.search_manager.search(query, all_skills, limit)
+        results = self.search_manager.search(query, all_skills, limit)
         
-        # Determine the search method used for the results
-        search_method_used = "keyword"
-        if results_from_search_manager:
-            # Assume all results from a single call use the same search method
-            search_method_used = results_from_search_manager[0].get("search_method", "keyword")
-            
-        note_message = "Using keyword search" if search_method_used == "keyword" else "Using semantic search (higher quality)"
-
         return {
-            "results": results_from_search_manager,
-            "total_found": len(results_from_search_manager),
+            "results": results,
+            "total_found": len(results),
             "query": query,
-            "search_method": search_method_used,
-            "note": note_message
+            "search_method": "keyword",
+            "note": "Using keyword search"
         }

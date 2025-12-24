@@ -109,14 +109,7 @@ def load_skill(
 @mcp.tool(
     name="search_skills",
     description="""
-    Search for relevant skills using intelligent query matching.
-    
-    This tool automatically uses the best available search method:
-    - Keyword matching (fast, always available)
-    - Semantic search (better quality, loads in background)
-    
-    The AI doesn't need to know which method is used - just call this tool
-    and get ranked results based on relevance to your query.
+    Search for relevant skills using keyword matching.
     
     RECOMMENDED WORKFLOW:
     1. Call search_skills(query="user's question")
