@@ -288,9 +288,11 @@ skill-name/
 - if you want the AI to execute your script mention it in the skill with this path ${extensionPath}
 ex:
 if your skill name = skill-creator_files.
-${extensionPath}/scripts/script.py
+${extensionPath}/Gemini_Skills/skills/your_skill_name.
 
-- if you need the ai to read extra resources explicitly mention them in SKILL.md with this path ${extensionPath}
+** ${extensionPath}/Gemini_Skills/skills/skill-creator_files/cripts/script.py **
+
+- if you need the AI to read extra resources explicitly mention them in SKILL.md with this path ${extensionPath}
 
 ### Step 6: Iterate
 

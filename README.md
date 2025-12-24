@@ -1,4 +1,4 @@
-# Skill: GEMINI Extension
+# Skill: Gemini Skills
 An extension that contains an MCP (Model Context Protocol) server for loading skills on demand. 
 
 ## Overview
@@ -48,7 +48,7 @@ To install this repository as a Gemini CLI extension:
 1.  **Ensure `uv` is installed:** Follow the instructions above to install `uv` if you haven't already. `uv` is required to run the MCP server embedded within this extension.
 2.  **Install the extension:**
     ```bash
-    gemini extensions install https://github.com/MohamedHamed19m/Skill_GEMINI_Extension
+    gemini extensions install https://github.com/MohamedHamed19m/Gemini_Skills
     ```
 
 After installation, restart your Gemini CLI session to ensure the extension is loaded.
@@ -68,7 +68,7 @@ Restart the Gemini CLI. The following commands will be available:
 
 
 ## Update Extension
-- gemini extensions update skills
+- gemini extensions update Gemini_Skills
 
 - gemini extensions update --all
 

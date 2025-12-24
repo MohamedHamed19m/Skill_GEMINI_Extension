@@ -9,7 +9,7 @@ from mcp_app.models import SkillsListResult, SkillLoadResult, AddDirectoryResult
 from mcp_app.version import __version__
 
 
-mcp = FastMCP(name="Skills Server" , version=__version__)
+mcp = FastMCP(name="Gemini Skills" , version=__version__)
 
 # ============================================================================
 # MCP Tools (Protocol-Driven Interface)
