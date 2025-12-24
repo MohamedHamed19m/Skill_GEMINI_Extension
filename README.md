@@ -48,7 +48,7 @@ To install this repository as a Gemini CLI extension:
 1.  **Ensure `uv` is installed:** Follow the instructions above to install `uv` if you haven't already. `uv` is required to run the MCP server embedded within this extension.
 2.  **Install the extension:**
     ```bash
-    gemini extensions install https://github.com/MohamedHamed19m/Gemini_Skills
+    gemini extensions install https://github.com/MohamedHamed19m/Skill_GEMINI_Extension
     ```
 
 After installation, restart your Gemini CLI session to ensure the extension is loaded.
