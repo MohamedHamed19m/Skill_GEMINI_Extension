@@ -32,8 +32,7 @@ mcp = FastMCP(name="Gemini Skills", version=__version__)
     """,
 )
 def list_skills() -> SkillsListResult:
-    """
-    List all available skills with their metadata (lightweight operation).
+    """List all available skills with their metadata (lightweight operation).
 
     This is ALWAYS the first tool the AI should call to discover available skills.
     Returns metadata only - no full content is loaded.
@@ -44,6 +43,7 @@ def list_skills() -> SkillsListResult:
 
     Returns:
         SkillsListResult with all available skills metadata
+
     """
     skills = skills_manager.get_all_skills_metadata()
     loaded_names = skills_manager.get_loaded_skill_names()
@@ -77,8 +77,7 @@ def list_skills() -> SkillsListResult:
     """,
 )
 def load_skill(skill_name: str, force_reload: bool = False) -> SkillLoadResult:
-    """
-    Load the full content of a specific skill into context.
+    """Load the full content of a specific skill into context.
 
     IMPORTANT BEHAVIOR:
     - If skill is already loaded, returns status="already_loaded" WITHOUT
@@ -96,6 +95,7 @@ def load_skill(skill_name: str, force_reload: bool = False) -> SkillLoadResult:
 
     Returns:
         SkillLoadResult with status and content (if newly loaded)
+
     """
     return skills_manager.load_skill_content(skill_name, force_reload)
 
@@ -103,7 +103,7 @@ def load_skill(skill_name: str, force_reload: bool = False) -> SkillLoadResult:
 @mcp.tool(
     name="search_skills",
     description="""
-    Search for relevant skills using keyword matching.
+    Search for relevant skills using fuzzy matching and logic scoring.
     
     RECOMMENDED WORKFLOW:
     1. Call search_skills(query="user's question")
@@ -122,6 +122,11 @@ def search_skills(query: str, limit: int = 5) -> Dict[str, Any]:
     """Search for relevant skills based on query"""
     results_with_method = skills_manager.search_skills(query, limit)
 
+    # Post-process results to format match_reasons string for readability
+    for res in results_with_method["results"]:
+        if "match_reasons" in res and isinstance(res["match_reasons"], list):
+            res["match_reason"] = ", ".join(res["match_reasons"])
+
     return {
         "results": results_with_method["results"],
         "total_found": results_with_method["total_found"],
@@ -136,8 +141,7 @@ def search_skills(query: str, limit: int = 5) -> Dict[str, Any]:
     description="Add a new directory to scan for skills files. Returns result dict with success status.",
 )
 def add_skills_directory(path: str) -> AddDirectoryResult:
-    """
-    Add a new directory to scan for skills.
+    """Add a new directory to scan for skills.
     Returns result dict with success status.
     """
     return skills_manager.add_skills_directory(path)

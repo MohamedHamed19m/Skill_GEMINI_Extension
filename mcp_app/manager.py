@@ -7,7 +7,7 @@ import os
 import platform
 import subprocess
 from mcp_app.models import SkillMetadata, SkillLoadResult, AddDirectoryResult
-from mcp_app.search import SearchManager
+from mcp_app.search import SearchManager, KeywordSuggester
 
 
 # ============================================================================
@@ -18,8 +18,7 @@ SKILL_MARKDOWN_FILENAME = "SKILL.md"
 
 
 class SkillsManager:
-    """
-    Manages skill lifecycle: scanning, loading, tracking state.
+    """Manages skill lifecycle: scanning, loading, tracking state.
     Follows Single Responsibility Principle - only manages skills, doesn't make decisions.
     """
 
@@ -41,13 +40,15 @@ class SkillsManager:
 
         # State: Loaded skills (full content + metadata)
         self._loaded_skills: Dict[str, Dict[str, Any]] = {}
+        
+        # Keyword Suggester
+        self.keyword_suggester = KeywordSuggester()
 
         # Initialize by scanning directories
         self._scan_directories()
 
         # Add search manager
         self.search_manager = SearchManager(self)
-
     def _scan_directories(self) -> None:
         """Scan all active skills directories and parse metadata from all SKILL_MARKDOWN_FILENAME files"""
         self._available_skills.clear()
@@ -78,16 +79,26 @@ class SkillsManager:
                     self._available_skills[skill_name] = {
                         "metadata": metadata,
                         "path": md_file,
-                        "source_dir": skills_dir,  # Track which directory it came from
+                        "source_dir": skills_dir  # Track which directory it came from
                     }
+
+                    # Auto-enhance keywords
+                    try:
+                        suggestions = self.keyword_suggester.suggest(metadata)
+                        # Add unique suggestions
+                        for s in suggestions:
+                            if s not in metadata.keywords:
+                                metadata.keywords.append(s)
+                    except Exception as e:
+                        print(f"Warning: Failed to enhance keywords for {skill_name}: {e}")
+
                 except Exception as e:
                     print(
                         f"Warning: Failed to parse {md_file.name} in folder {md_file.parent.name}: {e}"
                     )
 
     def _parse_skill_metadata(self, file_path: Path) -> SkillMetadata:
-        """
-        Parse YAML frontmatter from skill file and extract metadata only.
+        """Parse YAML frontmatter from skill file and extract metadata only.
         Does NOT load the full content - that's done separately by load_skill.
         """
         content = file_path.read_text(encoding="utf-8")
@@ -135,8 +146,7 @@ class SkillsManager:
     def load_skill_content(
         self, skill_name: str, force_reload: bool = False
     ) -> SkillLoadResult:
-        """
-        Load full skill content. Returns SkillLoadResult with appropriate status.
+        """Load full skill content. Returns SkillLoadResult with appropriate status.
 
         Design Pattern: This method returns a Result object, not raw data.
         This allows the caller to handle different outcomes cleanly.
@@ -228,8 +238,7 @@ class SkillsManager:
             return False
 
     def add_skills_directory(self, path: str) -> AddDirectoryResult:
-        """
-        Add a new directory to scan for skills.
+        """Add a new directory to scan for skills.
         Returns result dict with success status.
         """
         try:
