@@ -1,64 +1,78 @@
 # models.py
 # Pydantic models (Data schemas)
 
-from fastmcp import FastMCP
 from pydantic import BaseModel, Field, ConfigDict
 from typing import List, Optional
 # ============================================================================
 # Core Data Models (Pydantic for validation)
 # ============================================================================
 
+
 class SkillMetadata(BaseModel):
     """Lightweight skill metadata for discovery - returned by list_skills"""
+
     name: str = Field(description="Unique skill identifier")
     description: str = Field(description="What this skill provides")
     keywords: List[str] = Field(description="Keywords for relevance matching")
-    
-    model_config = ConfigDict(json_schema_extra = {
+
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "name": "capl-arethil",
                 "description": "Expert knowledge of Vector CAPL ARETHIL library",
-                "keywords": ["arethil", "ethernet", "capl"]
+                "keywords": ["arethil", "ethernet", "capl"],
             }
-        })
+        }
+    )
 
 
 class SkillLoadResult(BaseModel):
     """Result returned by load_skill tool"""
+
     status: str = Field(description="Status: 'loaded', 'already_loaded', or 'error'")
     skill_name: str
     content: Optional[str] = Field(None, description="Full skill content if loaded")
     message: str = Field(description="Human-readable status message")
-    
-    model_config = ConfigDict(json_schema_extra = {
+
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "status": "loaded",
                 "skill_name": "capl-arethil",
                 "content": "# CAPL ARETHIL Expert\n...",
-                "message": "Skill loaded successfully"
+                "message": "Skill loaded successfully",
             }
-        })
+        }
+    )
 
 
 class SkillsListResult(BaseModel):
     """Result returned by list_skills tool"""
+
     skills: List[SkillMetadata] = Field(description="List of available skills")
     total_available: int = Field(description="Total number of skills found")
     currently_loaded: List[str] = Field(description="Names of currently loaded skills")
-    
-    model_config = ConfigDict(json_schema_extra = {
+
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "skills": [],
                 "total_available": 5,
-                "currently_loaded": ["capl-arethil"]
+                "currently_loaded": ["capl-arethil"],
             }
-        })
+        }
+    )
 
 
 class AddDirectoryResult(BaseModel):
     """Result returned by add_skills_directory tool"""
+
     success: bool = Field(description="Whether the directory was added and scanned")
     message: str = Field(description="Status message")
     error: Optional[str] = Field(None, description="Error message if success is False")
-    active_directories: List[str] = Field(default_factory=list, description="Current list of active skills directories")
-    new_skills_found: int = Field(default=0, description="Number of new skills found in the added directory")
+    active_directories: List[str] = Field(
+        default_factory=list, description="Current list of active skills directories"
+    )
+    new_skills_found: int = Field(
+        default=0, description="Number of new skills found in the added directory"
+    )
