@@ -1,15 +1,16 @@
-# models.py
-# Pydantic models (Data schemas)
+"""Pydantic models for the Skills MCP server."""
 
-from pydantic import BaseModel, Field, ConfigDict
 from typing import List, Optional
+from pydantic import BaseModel, Field, ConfigDict
+
+
 # ============================================================================
 # Core Data Models (Pydantic for validation)
 # ============================================================================
 
 
 class SkillMetadata(BaseModel):
-    """Lightweight skill metadata for discovery - returned by list_skills"""
+    """Lightweight skill metadata for discovery - returned by list_skills."""
 
     name: str = Field(description="Unique skill identifier")
     description: str = Field(description="What this skill provides")
@@ -27,7 +28,7 @@ class SkillMetadata(BaseModel):
 
 
 class SkillLoadResult(BaseModel):
-    """Result returned by load_skill tool"""
+    """Result returned by load_skill tool."""
 
     status: str = Field(description="Status: 'loaded', 'already_loaded', or 'error'")
     skill_name: str
@@ -47,11 +48,11 @@ class SkillLoadResult(BaseModel):
 
 
 class SkillsListResult(BaseModel):
-    """Result returned by list_skills tool"""
+    """Result returned by list_skills tool."""
 
     skills: List[SkillMetadata] = Field(description="List of available skills")
-    total_available: int = Field(description="Total number of skills found")
     currently_loaded: List[str] = Field(description="Names of currently loaded skills")
+    total_available: int = Field(description="Total number of skills found")
 
     model_config = ConfigDict(
         json_schema_extra={
@@ -65,7 +66,7 @@ class SkillsListResult(BaseModel):
 
 
 class AddDirectoryResult(BaseModel):
-    """Result returned by add_skills_directory tool"""
+    """Result returned by add_skills_directory tool."""
 
     success: bool = Field(description="Whether the directory was added and scanned")
     message: str = Field(description="Status message")

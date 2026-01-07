@@ -1,4 +1,4 @@
-# mcp_app/__init__.py
+"""MCP App package for managing skills."""
 
 import os
 from pathlib import Path

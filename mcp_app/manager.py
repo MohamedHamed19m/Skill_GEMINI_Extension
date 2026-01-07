@@ -1,11 +1,11 @@
-# manager.py
-# SkillsManager (Core logic)
-from typing import List, Optional, Dict, Any
-from pathlib import Path
-import yaml
+"""SkillsManager implementation for managing skill lifecycle."""
+
+import yaml  # type: ignore
 import os
 import platform
 import subprocess
+from pathlib import Path
+from typing import List, Optional, Dict, Any
 from mcp_app.models import SkillMetadata, SkillLoadResult, AddDirectoryResult
 from mcp_app.search import SearchManager, KeywordSuggester
 
@@ -15,14 +15,22 @@ from mcp_app.search import SearchManager, KeywordSuggester
 # ============================================================================
 
 SKILL_MARKDOWN_FILENAME = "SKILL.md"
+FRONTMATTER_PARTS_EXPECTED = 3
 
 
 class SkillsManager:
     """Manages skill lifecycle: scanning, loading, tracking state.
+
     Follows Single Responsibility Principle - only manages skills, doesn't make decisions.
     """
 
     def __init__(self, default_skills_dirs: Optional[List[str]] = None):
+        """Initialize SkillsManager with default directories.
+
+        Args:
+            default_skills_dirs: Optional list of directories to scan for skills.
+
+        """
         if default_skills_dirs:
             self.default_skills_dirs = [Path(d) for d in default_skills_dirs]
         else:
@@ -40,7 +48,7 @@ class SkillsManager:
 
         # State: Loaded skills (full content + metadata)
         self._loaded_skills: Dict[str, Dict[str, Any]] = {}
-        
+
         # Keyword Suggester
         self.keyword_suggester = KeywordSuggester()
 
@@ -49,8 +57,9 @@ class SkillsManager:
 
         # Add search manager
         self.search_manager = SearchManager(self)
+
     def _scan_directories(self) -> None:
-        """Scan all active skills directories and parse metadata from all SKILL_MARKDOWN_FILENAME files"""
+        """Scan all active skills directories and parse metadata from all SKILL_MARKDOWN_FILENAME files."""
         self._available_skills.clear()
 
         for skills_dir in self.active_skills_dirs:
@@ -79,7 +88,7 @@ class SkillsManager:
                     self._available_skills[skill_name] = {
                         "metadata": metadata,
                         "path": md_file,
-                        "source_dir": skills_dir  # Track which directory it came from
+                        "source_dir": skills_dir,  # Track which directory it came from
                     }
 
                     # Auto-enhance keywords
@@ -90,7 +99,9 @@ class SkillsManager:
                             if s not in metadata.keywords:
                                 metadata.keywords.append(s)
                     except Exception as e:
-                        print(f"Warning: Failed to enhance keywords for {skill_name}: {e}")
+                        print(
+                            f"Warning: Failed to enhance keywords for {skill_name}: {e}"
+                        )
 
                 except Exception as e:
                     print(
@@ -99,6 +110,7 @@ class SkillsManager:
 
     def _parse_skill_metadata(self, file_path: Path) -> SkillMetadata:
         """Parse YAML frontmatter from skill file and extract metadata only.
+
         Does NOT load the full content - that's done separately by load_skill.
         """
         content = file_path.read_text(encoding="utf-8")
@@ -110,9 +122,9 @@ class SkillsManager:
             )
 
         parts = content.split("---", 2)
-        if len(parts) < 3:
+        if len(parts) < FRONTMATTER_PARTS_EXPECTED:
             raise ValueError(
-                f"Invalid frontmatter format in {file_path.name} in {file_path.parent.name}"
+                f"File {file_path.name} in {file_path.parent.name} missing YAML frontmatter"
             )
 
         frontmatter = yaml.safe_load(parts[1])
@@ -128,19 +140,19 @@ class SkillsManager:
         )
 
     def get_all_skills_metadata(self) -> List[SkillMetadata]:
-        """Get metadata for all available skills (lightweight)"""
+        """Get metadata for all available skills (lightweight)."""
         return [item["metadata"] for item in self._available_skills.values()]
 
     def get_loaded_skill_names(self) -> List[str]:
-        """Get names of currently loaded skills"""
+        """Get names of currently loaded skills."""
         return list(self._loaded_skills.keys())
 
     def is_skill_loaded(self, skill_name: str) -> bool:
-        """Check if skill is already loaded"""
+        """Check if skill is already loaded."""
         return skill_name in self._loaded_skills
 
     def skill_exists(self, skill_name: str) -> bool:
-        """Check if skill exists in available skills"""
+        """Check if skill exists in available skills."""
         return skill_name in self._available_skills
 
     def load_skill_content(
@@ -182,7 +194,11 @@ class SkillsManager:
             # Remove frontmatter, keep only content
             if content.startswith("---"):
                 parts = content.split("---", 2)
-                content = parts[2].strip() if len(parts) >= 3 else content
+                content = (
+                    parts[2].strip()
+                    if len(parts) >= FRONTMATTER_PARTS_EXPECTED
+                    else content
+                )
 
             # Store in loaded skills
             self._loaded_skills[skill_name] = {"content": content, "metadata": metadata}
@@ -203,7 +219,7 @@ class SkillsManager:
             )
 
     def _create_skill_link(self, source_dir: Path, link_name: str) -> bool:
-        """Create a symlink/junction in the default skills directory pointing to source_dir"""
+        """Create a symlink/junction in the default skills directory pointing to source_dir."""
         target_dir = self.default_skills_dirs[0]  # Main skills folder
         link_path = target_dir / link_name
 
@@ -239,6 +255,7 @@ class SkillsManager:
 
     def add_skills_directory(self, path: str) -> AddDirectoryResult:
         """Add a new directory to scan for skills.
+
         Returns result dict with success status.
         """
         try:

@@ -1,5 +1,4 @@
-# skills_server.py
-# MCP Server & Tool Definitions (Entry Point)
+"""MCP Server implementation for the Skills extension."""
 
 from fastmcp import FastMCP
 from typing import Dict, Any
@@ -9,7 +8,7 @@ from mcp_app.models import SkillsListResult, SkillLoadResult, AddDirectoryResult
 from mcp_app.version import __version__
 
 
-mcp = FastMCP(name="Gemini Skills", version=__version__)
+mcp: FastMCP = FastMCP(name="Gemini Skills", version=__version__)
 
 
 # ============================================================================
@@ -119,7 +118,7 @@ def load_skill(skill_name: str, force_reload: bool = False) -> SkillLoadResult:
     """,
 )
 def search_skills(query: str, limit: int = 5) -> Dict[str, Any]:
-    """Search for relevant skills based on query"""
+    """Search for relevant skills based on query."""
     results_with_method = skills_manager.search_skills(query, limit)
 
     # Post-process results to format match_reasons string for readability
@@ -142,6 +141,7 @@ def search_skills(query: str, limit: int = 5) -> Dict[str, Any]:
 )
 def add_skills_directory(path: str) -> AddDirectoryResult:
     """Add a new directory to scan for skills.
+
     Returns result dict with success status.
     """
     return skills_manager.add_skills_directory(path)
